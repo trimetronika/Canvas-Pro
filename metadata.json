@@ -1,0 +1,7 @@
+{
+  "name": "Remix: CanvasPro - Sales Route Planner PWA version",
+  "description": "An intelligent canvassing assistant for Absenku.com Account Executives. Finds potential leads nearby and plans efficient visiting routes using Google Maps data.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
