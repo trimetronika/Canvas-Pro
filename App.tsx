@@ -21,6 +21,7 @@ import {
   Command,
   Menu
 } from 'lucide-react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { GeoLocation, CanvasPlan, IndustryOption, CanvasStop, DatabaseItem } from './types';
 import { generateCanvasRoute } from './services/geminiService';
 import { PlanDisplay } from './components/PlanDisplay';
@@ -879,6 +880,7 @@ const App: React.FC = () => {
         isMobileOpen={isMobileSidebarOpen}
         closeMobile={() => setIsMobileSidebarOpen(false)}
       />
+      <SpeedInsights />
     </div>
   );
 };
