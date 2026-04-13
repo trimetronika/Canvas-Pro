@@ -38,11 +38,11 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({ items, onRemoveItem,
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map((item) => {
           const waMessage = renderTemplate(whatsappTemplate || '', {
-              name: item.title,
-              phone: item.phone || '',
-              address: item.address || '',
-              link: item.uri || '',
-            });
+            name: item.title,
+            phone: item.phone || '',
+            address: item.address || '',
+            link: item.uri || '',
+          });
           const waLink = item.phone ? getWhatsAppLink(item.phone, waMessage) : null;
 
           return (
