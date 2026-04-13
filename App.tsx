@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   MapPin, 
   Building2, 
@@ -85,6 +85,9 @@ const App: React.FC = () => {
   const [lastSynced, setLastSynced] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
 
+  // Prevents auto-sync from firing while we are applying cloud data
+  const isHydratingFromCloud = useRef(false);
+
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -170,13 +173,32 @@ const App: React.FC = () => {
   }, [userEmail, isLoaded]);
 
   // Cloud Sync Logic
+  const applyCloudData = useCallback((cloudData: Record<string, unknown>) => {
+    if (cloudData.history && Array.isArray(cloudData.history)) {
+      setHistory(cloudData.history as CanvasPlan[]);
+    }
+    if (cloudData.savedRoutes && Array.isArray(cloudData.savedRoutes)) {
+      setSavedRoutes(cloudData.savedRoutes as CanvasPlan[]);
+    }
+    if (cloudData.database && Array.isArray(cloudData.database)) {
+      setDatabase(cloudData.database as DatabaseItem[]);
+    }
+    if (typeof cloudData.maxRadius === 'number') {
+      setMaxRadius(cloudData.maxRadius);
+    }
+    if (typeof cloudData.lastSynced === 'number') {
+      setLastSynced(cloudData.lastSynced);
+    }
+  }, []);
+
   const handleCloudSync = async (emailToSync?: string, dataOverrides?: { history?: CanvasPlan[], savedRoutes?: CanvasPlan[], database?: DatabaseItem[], maxRadius?: number }) => {
     const email = emailToSync || userEmail;
     if (!email) return;
 
     setSyncing(true);
     try {
-      // 1. Push current local data (or overrides) to cloud
+      // Push current local data (or overrides) to cloud.
+      // The server performs a read→merge→write union so no data is lost.
       const payload = {
         history: dataOverrides?.history || history,
         savedRoutes: dataOverrides?.savedRoutes || savedRoutes,
@@ -191,31 +213,17 @@ const App: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Failed to push data');
-      
-      const result = await response.json();
-      setLastSynced(result.lastSynced);
 
-      // 2. Fetch cloud data to see if there's anything new from other devices
-      const fetchRes = await fetch(`/api/sync/${email}`);
-      if (fetchRes.ok) {
-        const cloudData = await fetchRes.json();
-        if (cloudData) {
-          // Merge logic: Only overwrite if cloud data has content and is different
-          // This prevents accidental wipes if cloud data is somehow empty but local has data
-          if (cloudData.history && cloudData.history.length >= history.length && JSON.stringify(cloudData.history) !== JSON.stringify(payload.history)) {
-            setHistory(cloudData.history);
-          }
-          if (cloudData.savedRoutes && cloudData.savedRoutes.length >= savedRoutes.length && JSON.stringify(cloudData.savedRoutes) !== JSON.stringify(payload.savedRoutes)) {
-            setSavedRoutes(cloudData.savedRoutes);
-          }
-          if (cloudData.database && cloudData.database.length >= database.length && JSON.stringify(cloudData.database) !== JSON.stringify(payload.database)) {
-            setDatabase(cloudData.database);
-          }
-          if (cloudData.maxRadius && cloudData.maxRadius !== payload.maxRadius) {
-            setMaxRadius(cloudData.maxRadius);
-          }
-          setLastSynced(cloudData.lastSynced);
-        }
+      const result = await response.json();
+
+      // Apply the merged result returned by the server so local state is
+      // immediately consistent with the union of all devices.
+      if (result.data) {
+        isHydratingFromCloud.current = true;
+        applyCloudData(result.data as Record<string, unknown>);
+        isHydratingFromCloud.current = false;
+      } else if (result.lastSynced) {
+        setLastSynced(result.lastSynced);
       }
     } catch (err) {
       console.error("Sync error:", err);
@@ -225,9 +233,36 @@ const App: React.FC = () => {
     }
   };
 
+  // Initial pull: when email becomes available, fetch cloud data first so a
+  // new device does not immediately overwrite cloud with its empty local state.
+  useEffect(() => {
+    if (!isLoaded || !userEmail) return;
+    let cancelled = false;
+    const pull = async () => {
+      try {
+        const fetchRes = await fetch(`/api/sync/${userEmail}`);
+        if (!fetchRes.ok || cancelled) return;
+        const cloudData = await fetchRes.json();
+        if (cloudData && !cancelled) {
+          isHydratingFromCloud.current = true;
+          applyCloudData(cloudData as Record<string, unknown>);
+          isHydratingFromCloud.current = false;
+        }
+      } catch (err) {
+        console.error("Initial cloud pull error:", err);
+      }
+    };
+    pull();
+    return () => { cancelled = true; };
+  // applyCloudData is stable (useCallback with no deps) so omitting it is safe.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userEmail, isLoaded]);
+
   // Auto-sync on data changes (debounced)
   useEffect(() => {
     if (!isLoaded || !userEmail) return;
+    // Skip the push triggered by applying cloud data to avoid echo loops
+    if (isHydratingFromCloud.current) return;
     
     const timer = setTimeout(() => {
       handleCloudSync();
