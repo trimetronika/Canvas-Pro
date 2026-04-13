@@ -2,15 +2,16 @@ import React from 'react';
 import { DatabaseItem, GeoLocation } from '../types';
 import { Trash2, ExternalLink, MapPin, Briefcase, Calendar, Phone, Globe, Star, MessageCircle } from 'lucide-react';
 import { calculateDistance } from '../services/routeOptimization';
-import { getWhatsAppLink } from '../utils';
+import { getWhatsAppLink, renderTemplate } from '../utils';
 
 interface DatabaseViewProps {
   items: DatabaseItem[];
   onRemoveItem: (id: string) => void;
   userLocation?: GeoLocation;
+  whatsappTemplate?: string;
 }
 
-export const DatabaseView: React.FC<DatabaseViewProps> = ({ items, onRemoveItem, userLocation }) => {
+export const DatabaseView: React.FC<DatabaseViewProps> = ({ items, onRemoveItem, userLocation, whatsappTemplate }) => {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6 animate-fade-in">
@@ -36,7 +37,13 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({ items, onRemoveItem,
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map((item) => {
-          const waLink = item.phone ? getWhatsAppLink(item.phone, `Halo ${item.title}, saya tertarik dengan layanan Anda.`) : null;
+          const waMessage = renderTemplate(whatsappTemplate || '', {
+              name: item.title,
+              phone: item.phone || '',
+              address: item.address || '',
+              link: item.uri || '',
+            });
+          const waLink = item.phone ? getWhatsAppLink(item.phone, waMessage) : null;
 
           return (
           <div 

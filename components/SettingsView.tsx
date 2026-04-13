@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Trash2, Info, AlertTriangle, Moon, Sun, Monitor, Smartphone, Sliders, Cloud, RefreshCw, CheckCircle2, Mail } from 'lucide-react';
+import { Trash2, Info, AlertTriangle, Moon, Sun, Monitor, Smartphone, Sliders, Cloud, RefreshCw, CheckCircle2, Mail, MessageCircle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { DEFAULT_WHATSAPP_TEMPLATE } from '../utils';
 
 interface SettingsViewProps {
   onClearHistory: () => void;
@@ -11,6 +12,8 @@ interface SettingsViewProps {
   onUserEmailChange: (email: string) => void;
   lastSynced: number | null;
   syncing: boolean;
+  whatsappTemplate: string;
+  onWhatsappTemplateChange: (template: string) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
@@ -21,7 +24,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   userEmail,
   onUserEmailChange,
   lastSynced,
-  syncing
+  syncing,
+  whatsappTemplate,
+  onWhatsappTemplateChange,
 }) => {
   const { theme, toggleTheme } = useTheme();
   const [emailInput, setEmailInput] = useState(userEmail);
@@ -147,6 +152,46 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </span>
               </button>
            </div>
+        </div>
+      </div>
+
+      {/* WhatsApp Master Message Section */}
+      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden mb-6 transition-colors duration-300">
+        <div className="p-5 border-b border-slate-100 dark:border-slate-700">
+          <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+            <MessageCircle className="w-5 h-5 text-green-500" />
+            Master Pesan WhatsApp
+          </h3>
+        </div>
+
+        <div className="p-5 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+            Atur template pesan yang dikirim saat klik ikon WhatsApp pada setiap lead. Gunakan placeholder berikut:
+          </p>
+          <ul className="text-xs text-slate-500 dark:text-slate-400 space-y-1 pl-3">
+            <li><span className="font-bold text-slate-700 dark:text-slate-300">{`{name}`}</span> — Nama lead</li>
+            <li><span className="font-bold text-slate-700 dark:text-slate-300">{`{phone}`}</span> — Nomor telepon lead</li>
+            <li><span className="font-bold text-slate-700 dark:text-slate-300">{`{address}`}</span> — Alamat lead</li>
+            <li><span className="font-bold text-slate-700 dark:text-slate-300">{`{link}`}</span> — Link Google Maps lead</li>
+          </ul>
+          <textarea
+            value={whatsappTemplate}
+            onChange={(e) => onWhatsappTemplateChange(e.target.value)}
+            placeholder={DEFAULT_WHATSAPP_TEMPLATE}
+            rows={4}
+            className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-green-500 dark:focus:border-green-500 focus:ring-4 focus:ring-green-500/10 outline-none text-sm font-medium text-slate-800 dark:text-white transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 resize-none"
+          />
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+            Contoh: <span className="italic">{DEFAULT_WHATSAPP_TEMPLATE}</span>
+          </p>
+          {whatsappTemplate.trim() && (
+            <button
+              onClick={() => onWhatsappTemplateChange('')}
+              className="text-xs text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors font-medium"
+            >
+              Reset ke default
+            </button>
+          )}
         </div>
       </div>
 
