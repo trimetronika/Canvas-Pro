@@ -254,6 +254,7 @@ const App: React.FC = () => {
     };
     pull();
     return () => { cancelled = true; };
+  // applyCloudData is stable (useCallback with no deps) so omitting it is safe.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userEmail, isLoaded]);
 

@@ -25,10 +25,10 @@ function mergePlansById(
   incoming: unknown[] | undefined,
   existing: unknown[] | undefined
 ): unknown[] {
-  const a = Array.isArray(existing) ? existing : [];
-  const b = Array.isArray(incoming) ? incoming : [];
+  const existingItems = Array.isArray(existing) ? existing : [];
+  const incomingItems = Array.isArray(incoming) ? incoming : [];
   // cloud first, then incoming — so incoming (newer write) wins on duplicate keys
-  return uniqBy([...a, ...b], (p: unknown) => {
+  return uniqBy([...existingItems, ...incomingItems], (p: unknown) => {
     if (isPlainObject(p)) {
       return String(p["id"] ?? p["timestamp"] ?? "");
     }
@@ -40,9 +40,9 @@ function mergeDatabase(
   incoming: unknown[] | undefined,
   existing: unknown[] | undefined
 ): unknown[] {
-  const a = Array.isArray(existing) ? existing : [];
-  const b = Array.isArray(incoming) ? incoming : [];
-  return uniqBy([...a, ...b], (it: unknown) => {
+  const existingItems = Array.isArray(existing) ? existing : [];
+  const incomingItems = Array.isArray(incoming) ? incoming : [];
+  return uniqBy([...existingItems, ...incomingItems], (it: unknown) => {
     if (isPlainObject(it)) {
       return String(
         it["id"] ?? it["uri"] ?? `${String(it["title"] ?? "")}|${String(it["uri"] ?? "")}`
