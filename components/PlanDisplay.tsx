@@ -42,7 +42,7 @@ import {
   Star,
   MessageCircle
 } from 'lucide-react';
-import { getWhatsAppLink } from '../utils';
+import { getWhatsAppLink, renderTemplate } from '../utils';
 
 interface PlanDisplayProps {
   plan: CanvasPlan;
@@ -55,6 +55,7 @@ interface PlanDisplayProps {
   onAddToDatabase?: (stop: CanvasStop) => void;
   readOnly?: boolean;
   userLocation?: GeoLocation;
+  whatsappTemplate?: string;
 }
 
 export const PlanDisplay: React.FC<PlanDisplayProps> = ({ 
@@ -67,7 +68,8 @@ export const PlanDisplay: React.FC<PlanDisplayProps> = ({
   onBack,
   onAddToDatabase,
   readOnly = false,
-  userLocation
+  userLocation,
+  whatsappTemplate
 }) => {
   const [activeTab, setActiveTab] = useState<'route' | 'map' | 'strategy'>('route');
   const [expandedStopId, setExpandedStopId] = useState<string | null>(null);
@@ -549,7 +551,13 @@ export const PlanDisplay: React.FC<PlanDisplayProps> = ({
             </div>
           ) : (
             processedStops.map((stop, idx) => {
-              const waLink = stop.phone ? getWhatsAppLink(stop.phone, `Halo ${stop.title}, saya dari CanvasPro.`) : null;
+              const waMessage = renderTemplate(whatsappTemplate || '', {
+                name: stop.title,
+                phone: stop.phone || '',
+                address: stop.address || '',
+                link: stop.uri || '',
+              });
+              const waLink = stop.phone ? getWhatsAppLink(stop.phone, waMessage) : null;
               return (
               <div 
                 key={stop.id}

@@ -585,6 +585,7 @@ const App: React.FC = () => {
             onDelete={() => {}}
             readOnly={true} 
             userLocation={location || undefined}
+            whatsappTemplate={whatsappTemplate}
           />
         </div>
       );
@@ -626,6 +627,7 @@ const App: React.FC = () => {
             onAddToDatabase={handleAddToDatabase}
             readOnly={false}
             userLocation={location || undefined}
+            whatsappTemplate={whatsappTemplate}
           />
         );
       }
