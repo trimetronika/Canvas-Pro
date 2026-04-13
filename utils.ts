@@ -1,4 +1,4 @@
-export const DEFAULT_WHATSAPP_TEMPLATE = 'Halo {name}, saya tertarik dengan layanan Anda.';
+export const DEFAULT_WHATSAPP_TEMPLATE = 'Halo {name}, salam kenal saya dari team Absenku.com.';
 
 export interface WhatsAppTemplateData {
   name: string;
