@@ -1,3 +1,20 @@
+export const DEFAULT_WHATSAPP_TEMPLATE = 'Halo {name}, salam kenal saya dari team Absenku.com.';
+
+export interface WhatsAppTemplateData {
+  name: string;
+  phone: string;
+  address: string;
+  link: string;
+}
+
+export const renderTemplate = (template: string, data: WhatsAppTemplateData): string => {
+  const effective = template.trim() || DEFAULT_WHATSAPP_TEMPLATE;
+  return effective
+    .replace(/\{name\}/g, data.name)
+    .replace(/\{phone\}/g, data.phone)
+    .replace(/\{address\}/g, data.address)
+    .replace(/\{link\}/g, data.link);
+};
 
 export const formatPhoneNumber = (phone: string): string | null => {
   if (!phone) return null;

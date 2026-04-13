@@ -52,6 +52,7 @@ const LOCAL_STORAGE_SAVED_KEY = 'canvasPro_savedRoutes';
 const LOCAL_STORAGE_DATABASE_KEY = 'canvasPro_database';
 const LOCAL_STORAGE_MAX_RADIUS_KEY = 'canvasPro_maxRadius';
 const LOCAL_STORAGE_USER_EMAIL_KEY = 'canvasPro_userEmail';
+const LOCAL_STORAGE_WHATSAPP_TEMPLATE_KEY = 'canvasPro_whatsappTemplate';
 
 type AppView = 'active' | 'history' | 'settings' | 'database';
 
@@ -84,6 +85,7 @@ const App: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string>('');
   const [lastSynced, setLastSynced] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [whatsappTemplate, setWhatsappTemplate] = useState<string>('');
 
   // Prevents auto-sync from firing while we are applying cloud data
   const isHydratingFromCloud = useRef(false);
@@ -122,6 +124,11 @@ const App: React.FC = () => {
       const savedEmail = localStorage.getItem(LOCAL_STORAGE_USER_EMAIL_KEY);
       if (savedEmail) {
         setUserEmail(savedEmail);
+      }
+
+      const savedWhatsappTemplate = localStorage.getItem(LOCAL_STORAGE_WHATSAPP_TEMPLATE_KEY);
+      if (savedWhatsappTemplate !== null) {
+        setWhatsappTemplate(savedWhatsappTemplate);
       }
       
       setIsLoaded(true);
@@ -171,6 +178,11 @@ const App: React.FC = () => {
       localStorage.removeItem(LOCAL_STORAGE_USER_EMAIL_KEY);
     }
   }, [userEmail, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    localStorage.setItem(LOCAL_STORAGE_WHATSAPP_TEMPLATE_KEY, whatsappTemplate);
+  }, [whatsappTemplate, isLoaded]);
 
   // Cloud Sync Logic
   const applyCloudData = useCallback((cloudData: Record<string, unknown>) => {
@@ -592,6 +604,8 @@ const App: React.FC = () => {
         }}
         lastSynced={lastSynced}
         syncing={syncing}
+        whatsappTemplate={whatsappTemplate}
+        onWhatsappTemplateChange={setWhatsappTemplate}
        />;
     }
 
@@ -850,6 +864,7 @@ const App: React.FC = () => {
           items={database} 
           onRemoveItem={handleRemoveFromDatabase} 
           userLocation={location || undefined}
+          whatsappTemplate={whatsappTemplate}
         />
       );
     }
