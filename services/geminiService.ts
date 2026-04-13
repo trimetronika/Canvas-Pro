@@ -4,6 +4,88 @@ import { calculateDistance } from "./routeOptimization";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+// Model constants – lite is primary (cheaper/faster), flash is fallback
+const PRIMARY_MODEL = "gemini-2.5-flash-lite";
+const FALLBACK_MODEL = "gemini-2.5-flash";
+
+/** Returns true if the error is a Gemini rate-limit / quota-exhausted error. */
+const isRateLimitError = (err: any): boolean => {
+  if (!err) return false;
+  if (err.code === 429 || err.status === "RESOURCE_EXHAUSTED") return true;
+  const msg: string = err?.message || "";
+  return (
+    msg.includes("RESOURCE_EXHAUSTED") ||
+    msg.includes("Quota exceeded") ||
+    msg.includes("quota") ||
+    msg.includes("rate limit") ||
+    msg.includes("429")
+  );
+};
+
+/** Parses the suggested retry delay (in seconds) from a Gemini error, or returns null. */
+const getRetrySeconds = (err: any): number | null => {
+  if (!err) return null;
+
+  // Try structured details array: [{ "@type": "...RetryInfo", "retryDelay": "36s" }]
+  const details: any[] = err?.details || err?.error?.details || [];
+  for (const d of details) {
+    if (d?.retryDelay) {
+      const match = String(d.retryDelay).match(/(\d+(\.\d+)?)/);
+      if (match) return Math.ceil(parseFloat(match[1]));
+    }
+  }
+
+  // Fall back to parsing the message string: "Please retry in 36.449920189s"
+  const msg: string = err?.message || "";
+  const msgMatch = msg.match(/retry in (\d+(\.\d+)?)s/i);
+  if (msgMatch) return Math.ceil(parseFloat(msgMatch[1]));
+
+  return null;
+};
+
+/**
+ * Wraps a Gemini generateContent call with automatic model fallback.
+ * Primary model: gemini-2.5-flash-lite (cost-efficient default).
+ * Fallback model: gemini-2.5-flash (used once on rate-limit).
+ */
+const callGeminiWithFallback = async (
+  prompt: string,
+  config: Record<string, any>
+): Promise<any> => {
+  const tryModel = async (model: string) =>
+    ai.models.generateContent({ model, contents: prompt, config });
+
+  try {
+    const response = await tryModel(PRIMARY_MODEL);
+    console.log(`[Gemini] Request served by ${PRIMARY_MODEL}`);
+    return response;
+  } catch (primaryErr: any) {
+    if (!isRateLimitError(primaryErr)) throw primaryErr;
+
+    console.warn(
+      `[Gemini] Rate limited on ${PRIMARY_MODEL}, retrying with ${FALLBACK_MODEL}…`
+    );
+
+    try {
+      const response = await tryModel(FALLBACK_MODEL);
+      console.log(`[Gemini] Fallback request served by ${FALLBACK_MODEL}`);
+      return response;
+    } catch (fallbackErr: any) {
+      // Both models rate-limited – bubble up a user-friendly error
+      const waitSecs =
+        getRetrySeconds(fallbackErr) ?? getRetrySeconds(primaryErr);
+      const waitMsg = waitSecs
+        ? `Coba lagi dalam ${waitSecs} detik.`
+        : "Coba lagi beberapa saat lagi.";
+      const friendly = new Error(
+        `Batas kuota Gemini tercapai di semua model. ${waitMsg}`
+      ) as any;
+      friendly.retryAfterSeconds = waitSecs;
+      throw friendly;
+    }
+  }
+};
+
 // Simple heuristic to score leads based on keywords and industry relevance
 // In a real app, this would analyze review sentiment from grounding chunks deeper
 const analyzeLeadPotential = (title: string, industryIds: string[]): LeadScore => {
@@ -100,21 +182,17 @@ export const generateCanvasRoute = async (
       JANGAN LUPA blok JSON di akhir dengan detail lengkap (alamat, telp, rating, lat/lng, analisis).
     `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction,
-        tools,
-        toolConfig: location ? {
-          retrievalConfig: {
-            latLng: {
-              latitude: location.lat,
-              longitude: location.lng,
-            },
+    const response = await callGeminiWithFallback(prompt, {
+      systemInstruction,
+      tools,
+      toolConfig: location ? {
+        retrievalConfig: {
+          latLng: {
+            latitude: location.lat,
+            longitude: location.lng,
           },
-        } : undefined,
-      },
+        },
+      } : undefined,
     });
 
     const markdownText = response.text || "Tidak ada strategi khusus yang tersedia, namun lokasi telah ditemukan.";
@@ -293,6 +371,10 @@ export const generateCanvasRoute = async (
   } catch (error: any) {
     console.error("Error generating canvas route:", error);
     const msg = error?.message || "Terjadi kesalahan saat menghubungi AI.";
-    throw new Error(msg);
+    const err = new Error(msg) as any;
+    if (error?.retryAfterSeconds != null) {
+      err.retryAfterSeconds = error.retryAfterSeconds;
+    }
+    throw err;
   }
 };

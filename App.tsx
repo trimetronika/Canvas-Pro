@@ -353,7 +353,7 @@ const App: React.FC = () => {
       console.error("Generate error", e);
       let msg = "Gagal membuat rencana canvassing.";
       if (e instanceof Error) {
-         msg = e.message;
+        msg = e.message;
       }
       setError(String(msg));
     } finally {
