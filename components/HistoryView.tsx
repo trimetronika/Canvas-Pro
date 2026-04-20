@@ -1,13 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CanvasPlan } from '../types';
-import { Calendar, CheckCircle2, ChevronRight, MapPin, TrendingUp } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronRight, MapPin, TrendingUp, Pencil, Check, X } from 'lucide-react';
 
 interface HistoryViewProps {
   history: CanvasPlan[];
   onSelectPlan: (plan: CanvasPlan) => void;
+  onRenamePlan?: (planId: string, name: string) => void;
 }
 
-export const HistoryView: React.FC<HistoryViewProps> = ({ history, onSelectPlan }) => {
+export const HistoryView: React.FC<HistoryViewProps> = ({ history, onSelectPlan, onRenamePlan }) => {
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [editNameValue, setEditNameValue] = useState('');
+
+  const confirmRename = (planId: string) => {
+    if (editNameValue.trim() && onRenamePlan) {
+      onRenamePlan(planId, editNameValue.trim());
+    }
+    setEditingPlanId(null);
+  };
   if (history.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 px-6 text-center animate-fade-in">
@@ -57,20 +67,53 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ history, onSelectPlan 
           return (
             <button
               key={plan.id}
-              onClick={() => onSelectPlan(plan)}
+              onClick={() => { if (editingPlanId !== plan.id) onSelectPlan(plan); }}
               className="w-full bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-700 transition-all text-left group active:scale-[0.98]"
             >
               <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-1">
-                    {plan.customQuery || (plan.industries ? plan.industries.map(i => i.label).join(', ') : plan.industry?.label)}
-                  </h3>
+                <div className="flex-1 min-w-0 mr-2">
+                  {editingPlanId === plan.id ? (
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <input
+                        autoFocus
+                        value={editNameValue}
+                        onChange={e => setEditNameValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') confirmRename(plan.id);
+                          if (e.key === 'Escape') setEditingPlanId(null);
+                        }}
+                        className="flex-1 text-sm font-bold bg-slate-50 dark:bg-slate-700 border border-brand-300 dark:border-brand-600 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-100 outline-none min-w-0"
+                        placeholder="Nama rute…"
+                      />
+                      <button onClick={() => confirmRename(plan.id)} className="p-1 text-green-600 hover:text-green-700 dark:text-green-400 shrink-0">
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setEditingPlanId(null)} className="p-1 text-slate-400 hover:text-red-500 shrink-0">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 group/title">
+                      <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-1">
+                        {plan.customName || plan.customQuery || (plan.industries ? plan.industries.map(i => i.label).join(', ') : plan.industry?.label)}
+                      </h3>
+                      {onRenamePlan && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditNameValue(plan.customName || plan.customQuery || (plan.industries ? plan.industries.map(i => i.label).join(', ') : plan.industry?.label) || ''); setEditingPlanId(plan.id); }}
+                          className="p-1 text-slate-300 hover:text-brand-500 dark:hover:text-brand-400 rounded-md opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0"
+                          title="Rename"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
                     <Calendar className="w-3.5 h-3.5" />
                     {new Date(plan.timestamp).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                   </div>
                 </div>
-                <div className="p-2 bg-slate-50 dark:bg-slate-700 rounded-full group-hover:bg-brand-50 dark:group-hover:bg-brand-900/30 transition-colors">
+                <div className="p-2 bg-slate-50 dark:bg-slate-700 rounded-full group-hover:bg-brand-50 dark:group-hover:bg-brand-900/30 transition-colors shrink-0">
                   <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 group-hover:text-brand-500" />
                 </div>
               </div>

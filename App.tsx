@@ -19,7 +19,10 @@ import {
   Search,
   Sparkles,
   Command,
-  Menu
+  Menu,
+  Pencil,
+  Check,
+  X
 } from 'lucide-react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { GeoLocation, CanvasPlan, IndustryOption, CanvasStop, DatabaseItem } from './types';
@@ -93,6 +96,10 @@ const App: React.FC = () => {
   const [whatsappTemplate, setWhatsappTemplate] = useState<string>('');
   const [geminiModel, setGeminiModel] = useState<string>(DEFAULT_GEMINI_MODEL);
   const [geminiRateLimitWarning, setGeminiRateLimitWarning] = useState<GeminiRateLimitBannerState | null>(null);
+
+  // Draft inline rename state
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [editDraftValue, setEditDraftValue] = useState('');
 
   // Prevents auto-sync from firing while we are applying cloud data
   const isHydratingFromCloud = useRef(false);
@@ -513,6 +520,31 @@ const App: React.FC = () => {
     }
   };
 
+  const handleRenamePlan = (planId: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    // Update active plan if it matches
+    if (activePlan?.id === planId) {
+      const updated = { ...activePlan, customName: trimmed };
+      setActivePlan(updated);
+      if (updated.isSaved) {
+        const updatedSaved = savedRoutes.map(r => r.id === planId ? { ...r, customName: trimmed } : r);
+        setSavedRoutes(updatedSaved);
+      }
+    } else {
+      // Update in savedRoutes if found
+      const inSaved = savedRoutes.some(r => r.id === planId);
+      if (inSaved) {
+        setSavedRoutes(savedRoutes.map(r => r.id === planId ? { ...r, customName: trimmed } : r));
+      }
+      // Update in history if found
+      const inHistory = history.some(r => r.id === planId);
+      if (inHistory) {
+        setHistory(history.map(r => r.id === planId ? { ...r, customName: trimmed } : r));
+      }
+    }
+  };
+
   const resumeSavedRoute = (plan: CanvasPlan) => {
      if (activePlan && !activePlan.isSaved && activePlan.stops.some(s => s.status !== 'pending')) {
         if(!window.confirm("Rute aktif saat ini belum tersimpan. Ganti dengan rute tersimpan?")) {
@@ -611,6 +643,10 @@ const App: React.FC = () => {
             onUpdatePlanStops={() => {}}
             onComplete={() => {}} 
             onDelete={() => {}}
+            onRenamePlan={(name) => {
+              handleRenamePlan(selectedHistoryPlan.id, name);
+              setSelectedHistoryPlan({ ...selectedHistoryPlan, customName: name.trim() });
+            }}
             readOnly={true} 
             userLocation={location || undefined}
             whatsappTemplate={whatsappTemplate}
@@ -658,6 +694,7 @@ const App: React.FC = () => {
             onSave={handleSaveRoute}
             onBack={handleBackFromActive}
             onAddToDatabase={handleAddToDatabase}
+            onRenamePlan={(name) => handleRenamePlan(activePlan.id, name)}
             readOnly={false}
             userLocation={location || undefined}
             whatsappTemplate={whatsappTemplate}
@@ -850,19 +887,48 @@ const App: React.FC = () => {
                    
                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                       {savedRoutes.map(route => (
-                         <div key={route.id} onClick={() => resumeSavedRoute(route)} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-700 cursor-pointer flex justify-between items-center group relative shadow-sm transition-all">
-                            <div className="flex items-center gap-3">
-                               <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400">
+                         <div key={route.id} onClick={() => { if (editingDraftId !== route.id) resumeSavedRoute(route); }} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-700 cursor-pointer flex justify-between items-center group relative shadow-sm transition-all">
+                            <div className="flex items-center gap-3 min-w-0">
+                               <div className="w-10 h-10 shrink-0 rounded-full bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400">
                                   <Target className="w-5 h-5" />
                                </div>
-                               <div>
-                                  <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 line-clamp-1">
-                                     {route.customQuery || (route.industries ? route.industries.map(i => i.label).join(', ') : route.industry?.label)}
-                                  </h4>
+                               <div className="min-w-0">
+                                  {editingDraftId === route.id ? (
+                                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                      <input
+                                        autoFocus
+                                        value={editDraftValue}
+                                        onChange={e => setEditDraftValue(e.target.value)}
+                                        onKeyDown={e => {
+                                          if (e.key === 'Enter') { handleRenamePlan(route.id, editDraftValue); setEditingDraftId(null); }
+                                          if (e.key === 'Escape') setEditingDraftId(null);
+                                        }}
+                                        className="flex-1 text-sm font-bold bg-slate-50 dark:bg-slate-700 border border-brand-300 dark:border-brand-600 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-100 outline-none min-w-0 w-36"
+                                        placeholder="Nama rute…"
+                                      />
+                                      <button onClick={() => { handleRenamePlan(route.id, editDraftValue); setEditingDraftId(null); }} className="p-1 text-green-600 hover:text-green-700 dark:text-green-400 shrink-0">
+                                        <Check className="w-4 h-4" />
+                                      </button>
+                                      <button onClick={() => setEditingDraftId(null)} className="p-1 text-slate-400 hover:text-red-500 shrink-0">
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 line-clamp-1">
+                                       {route.customName || route.customQuery || (route.industries ? route.industries.map(i => i.label).join(', ') : route.industry?.label)}
+                                    </h4>
+                                  )}
                                   <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">{new Date(route.timestamp).toLocaleDateString()} • {route.stops.length} leads</p>
                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 shrink-0">
+                               <button
+                                  onClick={(e) => { e.stopPropagation(); setEditDraftValue(route.customName || route.customQuery || (route.industries ? route.industries.map(i => i.label).join(', ') : route.industry?.label) || ''); setEditingDraftId(route.id); }}
+                                  className="p-2 text-slate-300 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition-all z-10"
+                                  title="Rename"
+                               >
+                                  <Pencil className="w-3.5 h-3.5" />
+                               </button>
                                <button 
                                   onClick={(e) => deleteSavedRoute(e, route.id)} 
                                   className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all z-10"
@@ -887,7 +953,8 @@ const App: React.FC = () => {
       return (
         <HistoryView 
           history={history} 
-          onSelectPlan={setSelectedHistoryPlan} 
+          onSelectPlan={setSelectedHistoryPlan}
+          onRenamePlan={handleRenamePlan}
         />
       );
     }
