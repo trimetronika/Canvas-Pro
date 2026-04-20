@@ -79,8 +79,7 @@ export const PlanDisplay: React.FC<PlanDisplayProps> = ({
   const [isNavExpanded, setIsNavExpanded] = useState(true);
   const [navProvider, setNavProvider] = useState<'google' | 'waze'>('google');
   
-  // Reorder Mode State
-  const [isReordering, setIsReordering] = useState(false);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
 
   // Edit Title State
   const [editingStopId, setEditingStopId] = useState<string | null>(null);
@@ -318,11 +317,11 @@ export const PlanDisplay: React.FC<PlanDisplayProps> = ({
     window.open(url, '_blank');
   };
 
-  const handleFinishAndReport = () => {
+  const handleFinishAndSave = () => {
+    // Save to history first, then open WA report (complete case).
+    // onComplete is synchronous: it saves to history and navigates away.
+    onComplete();
     handleShareReport();
-    setTimeout(() => {
-      onComplete(); 
-    }, 1000);
   };
 
   const renderScoreBadge = (score?: LeadScore) => {
@@ -397,38 +396,77 @@ export const PlanDisplay: React.FC<PlanDisplayProps> = ({
           </div>
 
           {!readOnly && (
-            <div className="flex gap-2 justify-between items-center border-t border-slate-50 dark:border-slate-700 pt-3">
-               <div className="flex gap-2">
-                <button 
-                  onClick={onDelete}
-                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-               </div>
-               
-               <div className="flex gap-2">
-                  {onSave && !plan.isSaved && (
-                    <button 
-                      onClick={onSave}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-200 text-xs font-bold rounded-lg hover:border-brand-300 hover:text-brand-600 dark:hover:text-brand-300 transition-colors shadow-sm"
+            <div className="border-t border-slate-50 dark:border-slate-700 pt-3">
+              {showFinishConfirm ? (
+                /* In-UI confirmation card — replaces native window.confirm */
+                <div className="rounded-xl border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-3">
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-3">
+                    {isComplete
+                      ? 'Semua target selesai! Simpan sesi ke history dan kirim laporan via WhatsApp?'
+                      : `Masih ada ${totalSelected - completedCount} target belum dikunjungi. Selesaikan sesi ini dan simpan ke history?`}
+                  </p>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setShowFinishConfirm(false)}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                     >
-                      <Save className="w-4 h-4" />
-                      Save Draft
+                      Batal
                     </button>
-                  )}
-                  <button 
-                    onClick={isComplete ? handleFinishAndReport : onComplete}
-                    className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg shadow-sm transition-all ${
-                      isComplete 
-                        ? 'bg-green-600 dark:bg-green-700 text-white hover:bg-green-700 shadow-green-200 dark:shadow-none animate-pulse' 
-                        : 'bg-brand-600 dark:bg-brand-700 text-white hover:bg-brand-700 shadow-brand-200 dark:shadow-none'
-                    }`}
-                  >
-                    <Archive className="w-4 h-4" />
-                    {isComplete ? 'Finish & Report' : 'Finish'}
-                  </button>
-               </div>
+                    <button
+                      onClick={() => {
+                        setShowFinishConfirm(false);
+                        if (isComplete) {
+                          handleFinishAndSave();
+                        } else {
+                          onComplete();
+                        }
+                      }}
+                      className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                        isComplete
+                          ? 'bg-green-600 hover:bg-green-700 text-white'
+                          : 'bg-brand-600 hover:bg-brand-700 text-white'
+                      }`}
+                    >
+                      <Archive className="w-3.5 h-3.5" />
+                      {isComplete ? 'Finish & Report' : 'Finish'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2 justify-between items-center">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={onDelete}
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {onSave && !plan.isSaved && (
+                      <button
+                        onClick={onSave}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-200 text-xs font-bold rounded-lg hover:border-brand-300 hover:text-brand-600 dark:hover:text-brand-300 transition-colors shadow-sm"
+                      >
+                        <Save className="w-4 h-4" />
+                        Save Draft
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowFinishConfirm(true)}
+                      className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg shadow-sm transition-all ${
+                        isComplete
+                          ? 'bg-green-600 dark:bg-green-700 text-white hover:bg-green-700 shadow-green-200 dark:shadow-none animate-pulse'
+                          : 'bg-brand-600 dark:bg-brand-700 text-white hover:bg-brand-700 shadow-brand-200 dark:shadow-none'
+                      }`}
+                    >
+                      <Archive className="w-4 h-4" />
+                      {isComplete ? 'Finish & Report' : 'Finish'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

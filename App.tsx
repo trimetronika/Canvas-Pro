@@ -462,18 +462,6 @@ const App: React.FC = () => {
 
   const handleCompleteRun = () => {
     if (!activePlan) return;
-    
-    const unvisitedSelected = activePlan.stops.filter(s => s.selected && s.status === 'pending').length;
-    
-    if (unvisitedSelected > 0) {
-      if (!window.confirm(`Anda masih memiliki ${unvisitedSelected} target kunjungan yang belum didatangi. Selesaikan sesi ini?`)) {
-        return;
-      }
-    } else {
-      if (!window.confirm("Selesaikan sesi canvassing ini dan simpan ke history?")) {
-        return;
-      }
-    }
 
     // Create a deep copy to ensure history doesn't point to activePlan that gets nulled
     const planToSave = JSON.parse(JSON.stringify(activePlan));
