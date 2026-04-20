@@ -1071,8 +1071,6 @@ const App: React.FC = () => {
         hasActivePlan={!!activePlan}
         isCollapsed={isSidebarCollapsed}
         toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        isMobileOpen={false}
-        closeMobile={() => {}}
       />
       <div className="md:hidden">
         <BottomNav
