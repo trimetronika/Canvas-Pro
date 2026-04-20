@@ -1004,7 +1004,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className={`max-w-7xl mx-auto px-4 pt-24 pb-24 md:py-6 transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+      <main className={`max-w-7xl mx-auto px-4 py-24 md:py-6 transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
         {geminiRateLimitWarning && (
           <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 rounded-2xl border border-amber-200 dark:border-amber-900/40 text-sm animate-fade-in shadow-sm">
             <div className="flex items-start justify-between gap-3">
