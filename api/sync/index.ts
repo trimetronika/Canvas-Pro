@@ -21,6 +21,17 @@ function uniqBy<T>(items: T[], keyFn: (t: T) => string): T[] {
   return Array.from(map.values());
 }
 
+function mergeDeletedIds(
+  incoming: unknown[] | undefined,
+  existing: unknown[] | undefined
+): string[] {
+  const all = [
+    ...(Array.isArray(existing) ? existing : []),
+    ...(Array.isArray(incoming) ? incoming : []),
+  ];
+  return Array.from(new Set(all.filter((id): id is string => typeof id === "string")));
+}
+
 function mergePlansById(
   incoming: unknown[] | undefined,
   existing: unknown[] | undefined
@@ -30,7 +41,7 @@ function mergePlansById(
   // cloud first, then incoming — so incoming (newer write) wins on duplicate keys
   return uniqBy([...existingItems, ...incomingItems], (p: unknown) => {
     if (isPlainObject(p)) {
-      return String(p["id"] ?? p["timestamp"] ?? "");
+      return typeof p["id"] === "string" ? p["id"] : "";
     }
     return "";
   });
@@ -44,9 +55,7 @@ function mergeDatabase(
   const incomingItems = Array.isArray(incoming) ? incoming : [];
   return uniqBy([...existingItems, ...incomingItems], (it: unknown) => {
     if (isPlainObject(it)) {
-      return String(
-        it["id"] ?? it["uri"] ?? `${String(it["title"] ?? "")}|${String(it["uri"] ?? "")}`
-      );
+      return typeof it["id"] === "string" ? it["id"] : "";
     }
     return "";
   });
@@ -77,13 +86,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const incomingHistory = incoming["history"] as unknown[] | undefined;
     const incomingRoutes = incoming["savedRoutes"] as unknown[] | undefined;
     const incomingDatabase = incoming["database"] as unknown[] | undefined;
+    const incomingDeletedHistoryIds = incoming["deletedHistoryIds"] as unknown[] | undefined;
+    const incomingDeletedSavedRouteIds = incoming["deletedSavedRouteIds"] as unknown[] | undefined;
+    const incomingDeletedDatabaseItemIds = incoming["deletedDatabaseItemIds"] as unknown[] | undefined;
     const incomingMaxRadius = incoming["maxRadius"];
     const existingMaxRadius = existing["maxRadius"];
 
+    const deletedHistoryIds = mergeDeletedIds(incomingDeletedHistoryIds, existing["deletedHistoryIds"] as unknown[] | undefined);
+    const deletedSavedRouteIds = mergeDeletedIds(incomingDeletedSavedRouteIds, existing["deletedSavedRouteIds"] as unknown[] | undefined);
+    const deletedDatabaseItemIds = mergeDeletedIds(incomingDeletedDatabaseItemIds, existing["deletedDatabaseItemIds"] as unknown[] | undefined);
+
+    const mergedHistory = mergePlansById(incomingHistory, existing["history"] as unknown[] | undefined)
+      .filter((plan) => isPlainObject(plan) && typeof plan["id"] === "string" && !deletedHistoryIds.includes(plan["id"]));
+    const mergedSavedRoutes = mergePlansById(incomingRoutes, existing["savedRoutes"] as unknown[] | undefined)
+      .filter((plan) => isPlainObject(plan) && typeof plan["id"] === "string" && !deletedSavedRouteIds.includes(plan["id"]));
+    const mergedDatabase = mergeDatabase(incomingDatabase, existing["database"] as unknown[] | undefined)
+      .filter((item) => isPlainObject(item) && typeof item["id"] === "string" && !deletedDatabaseItemIds.includes(item["id"]));
+
     const merged: AnyObj = {
-      history: mergePlansById(incomingHistory, existing["history"] as unknown[] | undefined),
-      savedRoutes: mergePlansById(incomingRoutes, existing["savedRoutes"] as unknown[] | undefined),
-      database: mergeDatabase(incomingDatabase, existing["database"] as unknown[] | undefined),
+      history: mergedHistory,
+      savedRoutes: mergedSavedRoutes,
+      database: mergedDatabase,
+      deletedHistoryIds,
+      deletedSavedRouteIds,
+      deletedDatabaseItemIds,
       maxRadius:
         typeof incomingMaxRadius === "number" && typeof existingMaxRadius === "number"
           ? Math.max(incomingMaxRadius, existingMaxRadius)
