@@ -151,7 +151,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnT
       </div>
 
       {/* SVG — flex-1 so it fills all space above the legend footer */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 relative">
         <svg 
           width="100%" 
           height="100%" 
@@ -244,8 +244,8 @@ export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnT
 
         {/* Selected Point Popover — sits above the legend footer */}
         {selectedPointData && (
-          <div className="absolute bottom-0 left-0 right-0 p-4 animate-slide-up z-20">
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-600">
+          <div className="absolute bottom-3 left-0 right-0 px-4 animate-slide-up z-20 pointer-events-none">
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-600 pointer-events-auto">
                <div className="flex justify-between items-start mb-2">
                   <div>
                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${selectedPointData.isStart ? 'bg-red-100 text-red-600' : 'bg-brand-100 text-brand-600'}`}>
@@ -293,7 +293,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnT
       </div>
 
       {/* Legend Footer — always visible because the SVG container above is flex-1 */}
-      <div className="bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 p-2.5 flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 flex-shrink-0">
+      <div className="relative z-30 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 p-2.5 flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 flex-shrink-0">
          <div className="flex gap-3 overflow-x-auto">
            <div className="flex items-center gap-1.5 whitespace-nowrap">
              <span className="w-2 h-2 rounded-full bg-green-500"></span> Visited
