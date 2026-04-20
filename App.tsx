@@ -19,7 +19,8 @@ import {
   Search,
   Sparkles,
   Command,
-  Menu,
+  Moon,
+  Sun,
   Pencil,
   Check,
   X
@@ -30,10 +31,12 @@ import { generateCanvasRoute } from './services/geminiService';
 import { PlanDisplay } from './components/PlanDisplay';
 import { LoadingState } from './components/LoadingState';
 import { Sidebar } from './components/Sidebar';
+import { BottomNav } from './components/BottomNav';
 import { HistoryView } from './components/HistoryView';
 import { SettingsView } from './components/SettingsView';
 import { DatabaseView } from './components/DatabaseView';
 import { DEFAULT_GEMINI_MODEL, GEMINI_MODEL_OPTIONS, isValidGeminiModel, LOCAL_STORAGE_GEMINI_MODEL_KEY } from './geminiModels';
+import { useTheme } from './contexts/ThemeContext';
 
 import { LocationPicker } from './components/LocationPicker';
 
@@ -66,7 +69,7 @@ type GeminiRateLimitBannerState = {
 
 const App: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
   
   const [currentView, setCurrentView] = useState<AppView>('active');
   const [selectedHistoryPlan, setSelectedHistoryPlan] = useState<CanvasPlan | null>(null);
@@ -966,38 +969,42 @@ const App: React.FC = () => {
       <header className={`fixed top-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 z-40 transition-all duration-300 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-             {/* Mobile Sidebar Toggle */}
              <button 
-               onClick={() => setIsMobileSidebarOpen(true)}
-               className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-             >
-               <Menu className="w-6 h-6" />
-             </button>
-
-             <button 
-               onClick={resetToHome}
-               className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
-               title="Reset"
+                onClick={resetToHome}
+                className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+                title="Reset"
              >
                <div className="bg-brand-600 text-white p-1.5 rounded-xl shadow-lg shadow-brand-500/30">
                  <MapPin className="w-5 h-5" />
                </div>
                <h1 className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-white">
                  Canvas<span className="text-brand-600 dark:text-brand-500">Pro</span>
-               </h1>
-             </button>
+                </h1>
+              </button>
+           </div>
+
+          <div className="flex items-center gap-3">
+            {activePlan && currentView === 'active' && !generating && (
+              <div className="text-[10px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-full border border-green-200 dark:border-green-900/50 flex items-center gap-1.5 uppercase tracking-wide">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                Live
+              </div>
+            )}
+
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle dark mode"
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 ${theme === 'dark' ? 'bg-brand-600' : 'bg-slate-200'}`}
+            >
+              <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition duration-300 shadow-md flex items-center justify-center ${theme === 'dark' ? 'translate-x-7' : 'translate-x-1'}`}>
+                {theme === 'dark' ? <Moon className="w-3 h-3 text-brand-600" /> : <Sun className="w-3 h-3 text-orange-400" />}
+              </span>
+            </button>
           </div>
-          
-          {activePlan && currentView === 'active' && !generating && (
-            <div className="text-[10px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-full border border-green-200 dark:border-green-900/50 flex items-center gap-1.5 uppercase tracking-wide">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-              Live
-            </div>
-          )}
         </div>
       </header>
 
-      <main className={`max-w-7xl mx-auto px-4 py-6 pt-24 transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+      <main className={`max-w-7xl mx-auto px-4 pt-24 pb-24 md:py-6 transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
         {geminiRateLimitWarning && (
           <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 rounded-2xl border border-amber-200 dark:border-amber-900/40 text-sm animate-fade-in shadow-sm">
             <div className="flex items-start justify-between gap-3">
@@ -1064,9 +1071,19 @@ const App: React.FC = () => {
         hasActivePlan={!!activePlan}
         isCollapsed={isSidebarCollapsed}
         toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        isMobileOpen={isMobileSidebarOpen}
-        closeMobile={() => setIsMobileSidebarOpen(false)}
+        isMobileOpen={false}
+        closeMobile={() => {}}
       />
+      <div className="md:hidden">
+        <BottomNav
+          currentView={currentView}
+          onNavigate={(view) => {
+            setCurrentView(view);
+            setSelectedHistoryPlan(null);
+          }}
+          hasActivePlan={!!activePlan}
+        />
+      </div>
       <SpeedInsights />
     </div>
   );
