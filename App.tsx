@@ -139,7 +139,7 @@ const App: React.FC = () => {
       }
 
       const savedGeminiModel = localStorage.getItem(LOCAL_STORAGE_GEMINI_MODEL_KEY);
-      if (isValidGeminiModel(savedGeminiModel)) {
+      if (savedGeminiModel && isValidGeminiModel(savedGeminiModel)) {
         setGeminiModel(savedGeminiModel);
       }
       
@@ -370,20 +370,11 @@ const App: React.FC = () => {
       setCustomSearchTerm(''); // Reset after use
     } catch (e: any) {
       console.error("Generate error", e);
-      const isRateLimited =
-        Boolean(e?.isRateLimitError) ||
-        e?.code === 429 ||
-        e?.status === 'RESOURCE_EXHAUSTED' ||
-        /RESOURCE_EXHAUSTED|quota exceeded|rate limit|429/i.test(String(e?.message || ''));
+      const isRateLimited = Boolean(e?.isRateLimitError);
       if (isRateLimited) {
-        const retryFromError = e?.retryAfterSeconds;
-        const retryFromMessage = (() => {
-          const match = String(e?.message || '').match(/(?:retry in|dalam)\s+(\d+(\.\d+)?)(?:s|\s*detik)/i);
-          return match ? Math.ceil(parseFloat(match[1])) : undefined;
-        })();
         setGeminiRateLimitWarning({
           model: e?.model || geminiModel,
-          retryAfterSeconds: retryFromError ?? retryFromMessage,
+          retryAfterSeconds: e?.retryAfterSeconds,
         });
         setError(null);
         return;

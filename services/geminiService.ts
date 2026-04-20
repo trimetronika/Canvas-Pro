@@ -6,10 +6,11 @@ import { DEFAULT_GEMINI_MODEL } from "../geminiModels";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /** Returns true if the error is a Gemini rate-limit / quota-exhausted error. */
-const isRateLimitError = (err: any): boolean => {
-  if (!err) return false;
-  if (err.code === 429 || err.status === "RESOURCE_EXHAUSTED") return true;
-  const msg: string = err?.message || "";
+export const isGeminiRateLimitError = (err: unknown): boolean => {
+  if (err == null) return false;
+  const maybeError = err as { code?: number; status?: string; message?: string };
+  if (maybeError.code === 429 || maybeError.status === "RESOURCE_EXHAUSTED") return true;
+  const msg: string = maybeError.message || "";
   return (
     msg.includes("RESOURCE_EXHAUSTED") ||
     msg.includes("Quota exceeded") ||
@@ -51,12 +52,13 @@ const callGemini = async (
     console.log(`[Gemini] Request served by ${model}`);
     return response;
   } catch (err: any) {
-    if (isRateLimitError(err)) {
+    if (isGeminiRateLimitError(err)) {
       const waitSecs = getRetrySeconds(err);
+      const baseMsg = `Model ${model} mencapai batas kuota/rate limit Gemini.`;
       const friendly = new Error(
         waitSecs
-          ? `Model ${model} mencapai batas kuota/rate limit Gemini. Coba lagi dalam ${waitSecs} detik.`
-          : `Model ${model} mencapai batas kuota/rate limit Gemini. Coba lagi beberapa saat lagi.`
+          ? `${baseMsg} Coba lagi dalam ${waitSecs} detik.`
+          : `${baseMsg} Coba lagi beberapa saat lagi.`
       ) as any;
       friendly.retryAfterSeconds = waitSecs;
       friendly.isRateLimitError = true;

@@ -34,4 +34,4 @@ export const GEMINI_MODEL_OPTIONS: GeminiModelOption[] = [
 ];
 
 export const isValidGeminiModel = (model: string | null | undefined): boolean =>
-  !!model && GEMINI_MODEL_OPTIONS.some((option) => option.id === model);
+  model != null && GEMINI_MODEL_OPTIONS.some((option) => option.id === model);
