@@ -30,6 +30,7 @@ import { Sidebar } from './components/Sidebar';
 import { HistoryView } from './components/HistoryView';
 import { SettingsView } from './components/SettingsView';
 import { DatabaseView } from './components/DatabaseView';
+import { DEFAULT_GEMINI_MODEL, GEMINI_MODEL_OPTIONS, isValidGeminiModel, LOCAL_STORAGE_GEMINI_MODEL_KEY } from './geminiModels';
 
 import { LocationPicker } from './components/LocationPicker';
 
@@ -55,6 +56,10 @@ const LOCAL_STORAGE_USER_EMAIL_KEY = 'canvasPro_userEmail';
 const LOCAL_STORAGE_WHATSAPP_TEMPLATE_KEY = 'canvasPro_whatsappTemplate';
 
 type AppView = 'active' | 'history' | 'settings' | 'database';
+type GeminiRateLimitBannerState = {
+  model: string;
+  retryAfterSeconds?: number;
+};
 
 const App: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -86,6 +91,8 @@ const App: React.FC = () => {
   const [lastSynced, setLastSynced] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [whatsappTemplate, setWhatsappTemplate] = useState<string>('');
+  const [geminiModel, setGeminiModel] = useState<string>(DEFAULT_GEMINI_MODEL);
+  const [geminiRateLimitWarning, setGeminiRateLimitWarning] = useState<GeminiRateLimitBannerState | null>(null);
 
   // Prevents auto-sync from firing while we are applying cloud data
   const isHydratingFromCloud = useRef(false);
@@ -129,6 +136,11 @@ const App: React.FC = () => {
       const savedWhatsappTemplate = localStorage.getItem(LOCAL_STORAGE_WHATSAPP_TEMPLATE_KEY);
       if (savedWhatsappTemplate !== null) {
         setWhatsappTemplate(savedWhatsappTemplate);
+      }
+
+      const savedGeminiModel = localStorage.getItem(LOCAL_STORAGE_GEMINI_MODEL_KEY);
+      if (savedGeminiModel && isValidGeminiModel(savedGeminiModel)) {
+        setGeminiModel(savedGeminiModel);
       }
       
       setIsLoaded(true);
@@ -183,6 +195,11 @@ const App: React.FC = () => {
     if (!isLoaded) return;
     localStorage.setItem(LOCAL_STORAGE_WHATSAPP_TEMPLATE_KEY, whatsappTemplate);
   }, [whatsappTemplate, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    localStorage.setItem(LOCAL_STORAGE_GEMINI_MODEL_KEY, geminiModel);
+  }, [geminiModel, isLoaded]);
 
   // Cloud Sync Logic
   const applyCloudData = useCallback((cloudData: Record<string, unknown>) => {
@@ -337,6 +354,7 @@ const App: React.FC = () => {
     
     setGenerating(true);
     setError(null);
+    setGeminiRateLimitWarning(null);
 
     try {
       // Pass the custom search term if it exists, otherwise undefined
@@ -345,12 +363,22 @@ const App: React.FC = () => {
         selectedIndustries, 
         customSearchTerm.trim() !== '' ? customSearchTerm : undefined,
         useCurrentLocation ? undefined : targetArea,
-        radius
+        radius,
+        geminiModel
       );
       setActivePlan(result);
       setCustomSearchTerm(''); // Reset after use
     } catch (e: any) {
       console.error("Generate error", e);
+      const isRateLimited = Boolean(e?.isRateLimitError);
+      if (isRateLimited) {
+        setGeminiRateLimitWarning({
+          model: e?.model || geminiModel,
+          retryAfterSeconds: e?.retryAfterSeconds,
+        });
+        setError(null);
+        return;
+      }
       let msg = "Gagal membuat rencana canvassing.";
       if (e instanceof Error) {
         msg = e.message;
@@ -607,6 +635,11 @@ const App: React.FC = () => {
         syncing={syncing}
         whatsappTemplate={whatsappTemplate}
         onWhatsappTemplateChange={setWhatsappTemplate}
+        geminiModel={geminiModel}
+        onGeminiModelChange={(model) => {
+          setGeminiModel(model);
+          setGeminiRateLimitWarning(null);
+        }}
        />;
     }
 
@@ -910,6 +943,53 @@ const App: React.FC = () => {
       </header>
 
       <main className={`max-w-7xl mx-auto px-4 py-6 pt-24 transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+        {geminiRateLimitWarning && (
+          <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 rounded-2xl border border-amber-200 dark:border-amber-900/40 text-sm animate-fade-in shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-bold">
+                    Model aktif <span className="font-extrabold">{geminiRateLimitWarning.model}</span> mencapai rate limit/quota.
+                  </p>
+                  {geminiRateLimitWarning.retryAfterSeconds != null && (
+                    <p className="text-xs font-medium">
+                      Coba lagi dalam {geminiRateLimitWarning.retryAfterSeconds} detik, atau ganti model.
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setGeminiRateLimitWarning(null)}
+                className="text-xs font-bold text-amber-700 dark:text-amber-400 hover:opacity-80 transition-opacity"
+              >
+                Tutup
+              </button>
+            </div>
+            <div className="mt-3 flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={() => setCurrentView('settings')}
+                className="px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors"
+              >
+                Buka Settings
+              </button>
+              <select
+                value={geminiModel}
+                onChange={(e) => {
+                  setGeminiModel(e.target.value);
+                  setGeminiRateLimitWarning(null);
+                }}
+                className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-xs font-semibold text-slate-700 dark:text-slate-200"
+              >
+                {GEMINI_MODEL_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
         {error && (
            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl border border-red-100 dark:border-red-900/30 text-center text-sm font-bold animate-fade-in flex items-center justify-center gap-2 shadow-sm">
             <AlertTriangle className="w-5 h-5" />
