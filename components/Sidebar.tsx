@@ -7,8 +7,7 @@ import {
   Database, 
   Menu, 
   ChevronLeft, 
-  ChevronRight,
-  X
+  ChevronRight
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -17,8 +16,6 @@ interface SidebarProps {
   hasActivePlan: boolean;
   isCollapsed: boolean;
   toggleCollapse: () => void;
-  isMobileOpen: boolean;
-  closeMobile: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -26,9 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigate, 
   hasActivePlan, 
   isCollapsed, 
-  toggleCollapse,
-  isMobileOpen,
-  closeMobile
+  toggleCollapse
 }) => {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
@@ -42,20 +37,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const sidebarClasses = `
     fixed top-0 left-0 h-screen bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-r border-slate-200 dark:border-slate-800 z-50 transition-all duration-300 ease-in-out
     ${isCollapsed ? 'w-20' : 'w-64'}
-    ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+    -translate-x-full md:translate-x-0
   `;
 
   return (
-    <>
-      {/* Mobile Overlay */}
-      {isMobileOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm transition-opacity"
-          onClick={closeMobile}
-        />
-      )}
-
-      <div className={sidebarClasses}>
+    <div className={sidebarClasses}>
         {/* Header / Toggle */}
         <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between px-6'} border-b border-slate-100 dark:border-slate-800`}>
           {!isCollapsed && (
@@ -71,13 +57,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <Menu className="w-5 h-5" />
           </button>
-
-          <button 
-            onClick={closeMobile}
-            className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors md:hidden"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
         {/* Menu Items */}
@@ -91,7 +70,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 key={item.id}
                 onClick={() => {
                   onNavigate(item.id as any);
-                  closeMobile();
                 }}
                 onMouseEnter={() => setHoveredItem(item.id)}
                 onMouseLeave={() => setHoveredItem(null)}
@@ -134,7 +112,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="absolute bottom-4 left-0 right-0 px-3">
            {/* Can add user profile or logout here later */}
         </div>
-      </div>
-    </>
+    </div>
   );
 };

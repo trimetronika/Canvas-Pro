@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2, Info, AlertTriangle, Moon, Sun, Monitor, Smartphone, Sliders, Cloud, RefreshCw, CheckCircle2, Mail, MessageCircle } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
+import { Trash2, Info, AlertTriangle, Smartphone, Sliders, Cloud, RefreshCw, Mail, MessageCircle } from 'lucide-react';
 import { DEFAULT_WHATSAPP_TEMPLATE } from '../utils';
 import { GEMINI_MODEL_OPTIONS } from '../geminiModels';
 
@@ -33,7 +32,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   geminiModel,
   onGeminiModelChange,
 }) => {
-  const { theme, toggleTheme } = useTheme();
   const [emailInput, setEmailInput] = useState(userEmail);
 
   const handleEmailSubmit = (e: React.FormEvent) => {
@@ -156,34 +154,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 font-medium">
                 Model experimental mungkin tidak tersedia di semua akun/project API key.
               </p>
-           </div>
-        </div>
-      </div>
-
-      {/* Appearance Section */}
-      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden mb-6 transition-colors duration-300">
-        <div className="p-5 border-b border-slate-100 dark:border-slate-700">
-          <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-            <Monitor className="w-5 h-5 text-brand-500" />
-            Appearance
-          </h3>
-        </div>
-        
-        <div className="p-5">
-           <div className="flex items-center justify-between">
-              <div>
-                 <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Dark Mode</p>
-                 <p className="text-xs text-slate-500 dark:text-slate-400">Switch between light and dark themes</p>
-              </div>
-              
-              <button 
-                onClick={toggleTheme}
-                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${theme === 'dark' ? 'bg-brand-600' : 'bg-slate-200'}`}
-              >
-                <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition duration-300 shadow-md flex items-center justify-center ${theme === 'dark' ? 'translate-x-7' : 'translate-x-1'}`}>
-                   {theme === 'dark' ? <Moon className="w-3 h-3 text-brand-600" /> : <Sun className="w-3 h-3 text-orange-400" />}
-                </span>
-              </button>
            </div>
         </div>
       </div>
