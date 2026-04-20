@@ -51,6 +51,10 @@ export interface CanvasPlan {
   markdownText: string;
   stops: CanvasStop[];
   isSaved?: boolean;
+  /** The exact origin (GPS or manual target) used when this plan was generated.
+   *  Stored so the Tactical Map and navigation remain available even when the
+   *  user's live GPS position is unavailable or has changed. */
+  origin?: GeoLocation;
 }
 
 export type IndustryType = 'corporate' | 'industrial' | 'startup' | 'retail' | 'hospitality' | 'outsourcing' | 'education' | 'health' | 'custom' | 'ai-recommendation';

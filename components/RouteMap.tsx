@@ -1,39 +1,43 @@
 import React, { useState, useMemo } from 'react';
-import { CanvasStop, GeoLocation, VisitStatus } from '../types';
+import { CanvasStop, GeoLocation } from '../types';
 import { calculateDistance } from '../services/routeOptimization';
-import { MapPin, Navigation, Compass, ExternalLink, Ruler } from 'lucide-react';
+import { MapPin, Navigation, Compass, ExternalLink, Ruler, AlertTriangle } from 'lucide-react';
 
 interface RouteMapProps {
   stops: CanvasStop[];
   userLocation: GeoLocation;
   returnToStart?: boolean;
   height?: number;
+  /** Called when a non-start map marker is clicked; receives the stop id. */
+  onPointClick?: (stopId: string) => void;
 }
 
-export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnToStart = false, height = 350 }) => {
+export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnToStart = false, height = 350, onPointClick }) => {
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   
-  // Filter active stops
+  // All active (selected) stops — used to count missing-coord ones for the legend.
   const activeStops = stops.filter(s => s.selected);
+  const noCoordCount = activeStops.filter(s => !Number.isFinite(s.lat) || !Number.isFinite(s.lng)).length;
 
-  // Combine all points (user location + stops)
+  // Combine all points (user location + stops that have valid coordinates)
   const points = useMemo(() => {
-    const allPoints = [
+    return [
       { id: 'start', lat: userLocation.lat, lng: userLocation.lng, label: 'S', isStart: true, status: 'visited', title: 'Start Location', uri: '' },
-      ...activeStops.map((s, i) => ({ 
-        id: s.id, 
-        lat: s.lat || 0, 
-        lng: s.lng || 0, 
-        label: (i + 1).toString(), 
-        isStart: false, 
-        status: s.status, 
-        title: s.title,
-        uri: s.uri 
-      }))
-    ].filter(p => p.lat !== 0 && p.lng !== 0);
-    return allPoints;
+      ...activeStops
+        .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng))
+        .map((s, i) => ({
+          id: s.id,
+          lat: s.lat as number,
+          lng: s.lng as number,
+          label: (i + 1).toString(),
+          isStart: false,
+          status: s.status,
+          title: s.title,
+          uri: s.uri,
+        }))
+    ];
   }, [userLocation, activeStops]);
 
   // Calculate Bounds
@@ -104,6 +108,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnT
 
   const handlePointClick = (id: string) => {
     setSelectedPointId(selectedPointId === id ? null : id);
+    if (id !== 'start' && onPointClick) {
+      onPointClick(id);
+    }
   };
 
   const resetView = () => {
@@ -115,7 +122,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnT
   const selectedPointData = normalizedPoints.find(p => p.id === selectedPointId);
 
   return (
-    <div className="relative w-full h-full bg-slate-50 dark:bg-slate-900 overflow-hidden group select-none">
+    <div className="relative w-full h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden group select-none">
       
       {/* Grid Background */}
       <div className="absolute inset-0 opacity-[0.07] dark:opacity-[0.1]" 
@@ -143,7 +150,8 @@ export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnT
         </button>
       </div>
 
-      <div className="w-full h-full">
+      {/* SVG — flex-1 so it fills all space above the legend footer */}
+      <div className="flex-1 min-h-0">
         <svg 
           width="100%" 
           height="100%" 
@@ -222,70 +230,70 @@ export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnT
             );
           })}
         </svg>
-      </div>
 
-      {/* Scale Bar */}
-      <div className="absolute bottom-12 right-4 flex flex-col items-end pointer-events-none">
-          <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono mb-1">
-             <Ruler className="w-3 h-3" /> Scale
-          </div>
-          <div className="flex flex-col items-end">
-             <div className="h-2 border-l border-r border-b border-slate-400 dark:border-slate-500 w-16 opacity-60"></div>
-             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5">{scaleText}</span>
-          </div>
-      </div>
-
-      {/* Selected Point Popover (Tooltip) */}
-      {selectedPointData && (
-        <div className="absolute bottom-0 left-0 right-0 p-4 animate-slide-up z-20">
-          <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-600">
-             <div className="flex justify-between items-start mb-2">
-                <div>
-                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${selectedPointData.isStart ? 'bg-red-100 text-red-600' : 'bg-brand-100 text-brand-600'}`}>
-                      {selectedPointData.isStart ? 'Start Point' : `Stop #${selectedPointData.label}`}
-                   </span>
-                   <h4 className="font-bold text-slate-800 dark:text-white mt-1 line-clamp-1">{selectedPointData.title}</h4>
-                   {selectedPointData.status !== 'pending' && !selectedPointData.isStart && (
-                      <span className="text-xs text-green-600 dark:text-green-400 font-medium flex items-center gap-1 mt-0.5">
-                         ● {selectedPointData.status === 'visited' ? 'Completed' : 'Skipped'}
-                      </span>
-                   )}
-                </div>
-                <button 
-                  onClick={() => setSelectedPointId(null)}
-                  className="p-1 bg-slate-100 dark:bg-slate-700 rounded-full text-slate-400"
-                >
-                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-             </div>
-             
-             {!selectedPointData.isStart && selectedPointData.uri && (
-                <div className="flex gap-2 mt-3">
-                   <a 
-                     href={selectedPointData.uri} 
-                     target="_blank" 
-                     rel="noreferrer"
-                     className="flex-1 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors"
-                   >
-                      <Navigation className="w-3.5 h-3.5" /> Navigate
-                   </a>
-                   <a 
-                     href={selectedPointData.uri.replace('maps', 'maps/search')} // Fallback heuristic for generic map
-                     target="_blank" 
-                     rel="noreferrer"
-                     className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 p-2.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                     title="Open in Maps"
-                   >
-                      <ExternalLink className="w-4 h-4" />
-                   </a>
-                </div>
-             )}
-          </div>
+        {/* Scale Bar — absolute inside the SVG container so it doesn't affect legend */}
+        <div className="absolute bottom-4 right-4 flex flex-col items-end pointer-events-none">
+            <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono mb-1">
+               <Ruler className="w-3 h-3" /> Scale
+            </div>
+            <div className="flex flex-col items-end">
+               <div className="h-2 border-l border-r border-b border-slate-400 dark:border-slate-500 w-16 opacity-60"></div>
+               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5">{scaleText}</span>
+            </div>
         </div>
-      )}
 
-      {/* Legend Footer */}
-      <div className="bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 p-2.5 flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400">
+        {/* Selected Point Popover — sits above the legend footer */}
+        {selectedPointData && (
+          <div className="absolute bottom-0 left-0 right-0 p-4 animate-slide-up z-20">
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-600">
+               <div className="flex justify-between items-start mb-2">
+                  <div>
+                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${selectedPointData.isStart ? 'bg-red-100 text-red-600' : 'bg-brand-100 text-brand-600'}`}>
+                        {selectedPointData.isStart ? 'Start Point' : `Stop #${selectedPointData.label}`}
+                     </span>
+                     <h4 className="font-bold text-slate-800 dark:text-white mt-1 line-clamp-1">{selectedPointData.title}</h4>
+                     {selectedPointData.status !== 'pending' && !selectedPointData.isStart && (
+                        <span className="text-xs text-green-600 dark:text-green-400 font-medium flex items-center gap-1 mt-0.5">
+                           ● {selectedPointData.status === 'visited' ? 'Completed' : 'Skipped'}
+                        </span>
+                     )}
+                  </div>
+                  <button 
+                    onClick={() => setSelectedPointId(null)}
+                    className="p-1 bg-slate-100 dark:bg-slate-700 rounded-full text-slate-400"
+                  >
+                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+               </div>
+               
+               {!selectedPointData.isStart && selectedPointData.uri && (
+                  <div className="flex gap-2 mt-3">
+                     <a 
+                       href={selectedPointData.uri} 
+                       target="_blank" 
+                       rel="noreferrer"
+                       className="flex-1 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors"
+                     >
+                        <Navigation className="w-3.5 h-3.5" /> Navigate
+                     </a>
+                     <a 
+                       href={selectedPointData.uri.replace('maps', 'maps/search')} // Fallback heuristic for generic map
+                       target="_blank" 
+                       rel="noreferrer"
+                       className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 p-2.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                       title="Open in Maps"
+                     >
+                        <ExternalLink className="w-4 h-4" />
+                     </a>
+                  </div>
+               )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Legend Footer — always visible because the SVG container above is flex-1 */}
+      <div className="bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 p-2.5 flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 flex-shrink-0">
          <div className="flex gap-3 overflow-x-auto">
            <div className="flex items-center gap-1.5 whitespace-nowrap">
              <span className="w-2 h-2 rounded-full bg-green-500"></span> Visited
@@ -293,6 +301,12 @@ export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnT
            <div className="flex items-center gap-1.5 whitespace-nowrap">
              <span className="w-2 h-0.5 bg-slate-400 border-t border-dashed border-slate-400 w-4"></span> Pending
            </div>
+           {noCoordCount > 0 && (
+             <div className="flex items-center gap-1 whitespace-nowrap text-amber-500 dark:text-amber-400 font-semibold">
+               <AlertTriangle className="w-3 h-3" />
+               {noCoordCount} no coords
+             </div>
+           )}
          </div>
       </div>
     </div>

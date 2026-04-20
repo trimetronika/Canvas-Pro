@@ -469,18 +469,6 @@ const App: React.FC = () => {
 
   const handleCompleteRun = () => {
     if (!activePlan) return;
-    
-    const unvisitedSelected = activePlan.stops.filter(s => s.selected && s.status === 'pending').length;
-    
-    if (unvisitedSelected > 0) {
-      if (!window.confirm(`Anda masih memiliki ${unvisitedSelected} target kunjungan yang belum didatangi. Selesaikan sesi ini?`)) {
-        return;
-      }
-    } else {
-      if (!window.confirm("Selesaikan sesi canvassing ini dan simpan ke history?")) {
-        return;
-      }
-    }
 
     // Create a deep copy to ensure history doesn't point to activePlan that gets nulled
     const planToSave = JSON.parse(JSON.stringify(activePlan));
@@ -553,6 +541,31 @@ const App: React.FC = () => {
      }
      setActivePlan(plan);
      window.scrollTo(0,0);
+  };
+
+  const handleRenamePlan = (planId: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    // Update active plan if it matches
+    if (activePlan?.id === planId) {
+      const updated = { ...activePlan, customName: trimmed };
+      setActivePlan(updated);
+      if (updated.isSaved) {
+        const updatedSaved = savedRoutes.map(r => r.id === planId ? { ...r, customName: trimmed } : r);
+        setSavedRoutes(updatedSaved);
+      }
+    } else {
+      // Update in savedRoutes if found
+      const inSaved = savedRoutes.some(r => r.id === planId);
+      if (inSaved) {
+        setSavedRoutes(savedRoutes.map(r => r.id === planId ? { ...r, customName: trimmed } : r));
+      }
+      // Update in history if found
+      const inHistory = history.some(r => r.id === planId);
+      if (inHistory) {
+        setHistory(history.map(r => r.id === planId ? { ...r, customName: trimmed } : r));
+      }
+    }
   };
 
   const deleteSavedRoute = (e: React.MouseEvent, id: string) => {
@@ -648,7 +661,7 @@ const App: React.FC = () => {
               setSelectedHistoryPlan({ ...selectedHistoryPlan, customName: name.trim() });
             }}
             readOnly={true} 
-            userLocation={location || undefined}
+            userLocation={selectedHistoryPlan.origin || location || undefined}
             whatsappTemplate={whatsappTemplate}
           />
         </div>
@@ -696,7 +709,7 @@ const App: React.FC = () => {
             onAddToDatabase={handleAddToDatabase}
             onRenamePlan={(name) => handleRenamePlan(activePlan.id, name)}
             readOnly={false}
-            userLocation={location || undefined}
+            userLocation={activePlan.origin || location || undefined}
             whatsappTemplate={whatsappTemplate}
           />
         );
