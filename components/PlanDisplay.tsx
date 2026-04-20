@@ -53,6 +53,7 @@ interface PlanDisplayProps {
   onSave?: () => void;
   onBack?: () => void;
   onAddToDatabase?: (stop: CanvasStop) => void;
+  onRenamePlan?: (name: string) => void;
   readOnly?: boolean;
   userLocation?: GeoLocation;
   whatsappTemplate?: string;
@@ -67,6 +68,7 @@ export const PlanDisplay: React.FC<PlanDisplayProps> = ({
   onSave,
   onBack,
   onAddToDatabase,
+  onRenamePlan,
   readOnly = false,
   userLocation,
   whatsappTemplate
@@ -79,9 +81,13 @@ export const PlanDisplay: React.FC<PlanDisplayProps> = ({
   // Reorder Mode State
   const [isReordering, setIsReordering] = useState(false);
 
-  // Edit Title State
+  // Edit Title State (for stop titles)
   const [editingStopId, setEditingStopId] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState('');
+
+  // Edit Plan Name State
+  const [isEditingPlanName, setIsEditingPlanName] = useState(false);
+  const [editPlanNameValue, setEditPlanNameValue] = useState('');
 
   useEffect(() => {
     if (plan.stops.length === 0 && plan.markdownText) {
@@ -322,9 +328,48 @@ export const PlanDisplay: React.FC<PlanDisplayProps> = ({
                 </button>
               )}
               <div>
-                <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight">
-                  {plan.customQuery ? `"${plan.customQuery}"` : (plan.industries ? plan.industries.map(i => i.label).join(', ') : plan.industry?.label)}
-                </h2>
+                {isEditingPlanName ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      autoFocus
+                      value={editPlanNameValue}
+                      onChange={e => setEditPlanNameValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { if (editPlanNameValue.trim() && onRenamePlan) { onRenamePlan(editPlanNameValue.trim()); } setIsEditingPlanName(false); }
+                        if (e.key === 'Escape') setIsEditingPlanName(false);
+                      }}
+                      className="text-lg font-extrabold bg-slate-50 dark:bg-slate-700 border border-brand-300 dark:border-brand-600 rounded-lg px-2 py-1 text-slate-900 dark:text-white outline-none w-48"
+                      placeholder="Nama rute…"
+                    />
+                    <button
+                      onClick={() => { if (editPlanNameValue.trim() && onRenamePlan) { onRenamePlan(editPlanNameValue.trim()); } setIsEditingPlanName(false); }}
+                      className="p-1 text-green-600 hover:text-green-700 dark:text-green-400"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setIsEditingPlanName(false)}
+                      className="p-1 text-slate-400 hover:text-red-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 group/title">
+                    <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight">
+                      {plan.customName || (plan.customQuery ? `"${plan.customQuery}"` : (plan.industries ? plan.industries.map(i => i.label).join(', ') : plan.industry?.label))}
+                    </h2>
+                    {onRenamePlan && (
+                      <button
+                        onClick={() => { setEditPlanNameValue(plan.customName || plan.customQuery || (plan.industries ? plan.industries.map(i => i.label).join(', ') : plan.industry?.label) || ''); setIsEditingPlanName(true); }}
+                        className="p-1 text-slate-300 hover:text-brand-500 dark:hover:text-brand-400 rounded-md opacity-0 group-hover/title:opacity-100 transition-opacity"
+                        title="Rename plan"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div className="flex items-center gap-2 mt-1">
                   <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700/50">
                     <Calendar className="w-3 h-3 text-slate-400" />

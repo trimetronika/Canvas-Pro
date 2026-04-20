@@ -47,6 +47,7 @@ export interface CanvasPlan {
   industries: IndustryOption[];
   industry?: IndustryOption; // Deprecated, kept for backward compatibility
   customQuery?: string; // Added for custom search support
+  customName?: string; // User-defined display name for this plan
   markdownText: string;
   stops: CanvasStop[];
   isSaved?: boolean;
