@@ -1,39 +1,43 @@
 import React, { useState, useMemo } from 'react';
-import { CanvasStop, GeoLocation, VisitStatus } from '../types';
+import { CanvasStop, GeoLocation } from '../types';
 import { calculateDistance } from '../services/routeOptimization';
-import { MapPin, Navigation, Compass, ExternalLink, Ruler } from 'lucide-react';
+import { MapPin, Navigation, Compass, ExternalLink, Ruler, AlertTriangle } from 'lucide-react';
 
 interface RouteMapProps {
   stops: CanvasStop[];
   userLocation: GeoLocation;
   returnToStart?: boolean;
   height?: number;
+  /** Called when a non-start map marker is clicked; receives the stop id. */
+  onPointClick?: (stopId: string) => void;
 }
 
-export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnToStart = false, height = 350 }) => {
+export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnToStart = false, height = 350, onPointClick }) => {
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   
-  // Filter active stops
+  // All active (selected) stops — used to count missing-coord ones for the legend.
   const activeStops = stops.filter(s => s.selected);
+  const noCoordCount = activeStops.filter(s => !Number.isFinite(s.lat) || !Number.isFinite(s.lng)).length;
 
-  // Combine all points (user location + stops)
+  // Combine all points (user location + stops that have valid coordinates)
   const points = useMemo(() => {
-    const allPoints = [
+    return [
       { id: 'start', lat: userLocation.lat, lng: userLocation.lng, label: 'S', isStart: true, status: 'visited', title: 'Start Location', uri: '' },
-      ...activeStops.map((s, i) => ({ 
-        id: s.id, 
-        lat: s.lat || 0, 
-        lng: s.lng || 0, 
-        label: (i + 1).toString(), 
-        isStart: false, 
-        status: s.status, 
-        title: s.title,
-        uri: s.uri 
-      }))
-    ].filter(p => p.lat !== 0 && p.lng !== 0);
-    return allPoints;
+      ...activeStops
+        .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng))
+        .map((s, i) => ({
+          id: s.id,
+          lat: s.lat as number,
+          lng: s.lng as number,
+          label: (i + 1).toString(),
+          isStart: false,
+          status: s.status,
+          title: s.title,
+          uri: s.uri,
+        }))
+    ];
   }, [userLocation, activeStops]);
 
   // Calculate Bounds
@@ -104,6 +108,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnT
 
   const handlePointClick = (id: string) => {
     setSelectedPointId(selectedPointId === id ? null : id);
+    if (id !== 'start' && onPointClick) {
+      onPointClick(id);
+    }
   };
 
   const resetView = () => {
@@ -293,6 +300,12 @@ export const RouteMap: React.FC<RouteMapProps> = ({ stops, userLocation, returnT
            <div className="flex items-center gap-1.5 whitespace-nowrap">
              <span className="w-2 h-0.5 bg-slate-400 border-t border-dashed border-slate-400 w-4"></span> Pending
            </div>
+           {noCoordCount > 0 && (
+             <div className="flex items-center gap-1 whitespace-nowrap text-amber-500 dark:text-amber-400 font-semibold">
+               <AlertTriangle className="w-3 h-3" />
+               {noCoordCount} no coords
+             </div>
+           )}
          </div>
       </div>
     </div>

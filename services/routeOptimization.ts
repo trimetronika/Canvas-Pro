@@ -30,8 +30,8 @@ export const calculateTotalRouteDistance = (start: GeoLocation, stops: CanvasSto
   // Jarak dari Start ke titik pertama
   // Dan titik ke titik berikutnya
   stops.forEach(stop => {
-    if (stop.lat && stop.lng) {
-      const stopLoc = { lat: stop.lat, lng: stop.lng };
+    if (Number.isFinite(stop.lat) && Number.isFinite(stop.lng)) {
+      const stopLoc = { lat: stop.lat as number, lng: stop.lng as number };
       totalDist += calculateDistance(current, stopLoc);
       current = stopLoc;
     }
@@ -169,11 +169,12 @@ export const generateGoogleMapsUrl = (
   
   // Jika Round Trip: Destinasi adalah Origin
   // Jika One Way: Destinasi adalah titik terakhir
+  const lastStop = stopsToNavigate[stopsToNavigate.length - 1];
   const destinationStr = returnToStart 
     ? originStr 
-    : (stopsToNavigate[stopsToNavigate.length - 1].lat && stopsToNavigate[stopsToNavigate.length - 1].lng)
-      ? `${stopsToNavigate[stopsToNavigate.length - 1].lat},${stopsToNavigate[stopsToNavigate.length - 1].lng}`
-      : encodeURIComponent(stopsToNavigate[stopsToNavigate.length - 1].title);
+    : (Number.isFinite(lastStop.lat) && Number.isFinite(lastStop.lng))
+      ? `${lastStop.lat},${lastStop.lng}`
+      : encodeURIComponent(lastStop.title);
 
   // Waypoints
   // Jika Round Trip: Semua titik adalah waypoint
@@ -186,11 +187,21 @@ export const generateGoogleMapsUrl = (
 
   if (waypointsList.length > 0) {
     const waypointsStr = waypointsList
-      .map(s => (s.lat && s.lng) ? `${s.lat},${s.lng}` : encodeURIComponent(s.title))
+      .map(s => (Number.isFinite(s.lat) && Number.isFinite(s.lng)) ? `${s.lat},${s.lng}` : encodeURIComponent(s.title))
       .join('|');
     url += `&waypoints=${waypointsStr}`;
   }
 
   url += `&travelmode=driving`;
   return url;
+};
+
+/**
+ * Generate a Waze navigation URL for the first selected stop with valid coords.
+ * Waze does not support multi-waypoint URLs; the user navigates stop-by-stop.
+ */
+export const generateWazeUrl = (stops: CanvasStop[]): string => {
+  const first = stops.find(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
+  if (!first) return '';
+  return `https://waze.com/ul?ll=${first.lat},${first.lng}&navigate=yes`;
 };

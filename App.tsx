@@ -612,7 +612,7 @@ const App: React.FC = () => {
             onComplete={() => {}} 
             onDelete={() => {}}
             readOnly={true} 
-            userLocation={location || undefined}
+            userLocation={selectedHistoryPlan.origin || location || undefined}
             whatsappTemplate={whatsappTemplate}
           />
         </div>
@@ -659,7 +659,7 @@ const App: React.FC = () => {
             onBack={handleBackFromActive}
             onAddToDatabase={handleAddToDatabase}
             readOnly={false}
-            userLocation={location || undefined}
+            userLocation={activePlan.origin || location || undefined}
             whatsappTemplate={whatsappTemplate}
           />
         );

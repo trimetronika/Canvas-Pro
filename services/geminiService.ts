@@ -252,14 +252,14 @@ export const generateCanvasRoute = async (
         } catch (e) {}
 
         // If we still don't have lat/lng, try JSON as last resort (though we removed it from prompt)
-        if (!lat || !lng) {
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
           lat = detail.latitude;
           lng = detail.longitude;
         }
 
         let distance: number | undefined;
-        if (location && lat && lng) {
-          distance = calculateDistance(location, { lat, lng });
+        if (location && Number.isFinite(lat) && Number.isFinite(lng)) {
+          distance = calculateDistance(location, { lat: lat as number, lng: lng as number });
         }
 
         const score = analyzeLeadPotential(place.title, industries.map(i => i.id));
@@ -289,7 +289,7 @@ export const generateCanvasRoute = async (
         let lat = detail.latitude;
         let lng = detail.longitude;
         let distance: number | undefined;
-        if (location && lat && lng) {
+        if (location && Number.isFinite(lat) && Number.isFinite(lng)) {
           distance = calculateDistance(location, { lat, lng });
         }
         const score = analyzeLeadPotential(detail.name, industries.map(i => i.id));
@@ -352,7 +352,8 @@ export const generateCanvasRoute = async (
       customQuery: customQueryText,
       markdownText,
       stops: finalStops,
-      isSaved: false
+      isSaved: false,
+      origin: location ?? undefined,
     };
 
   } catch (error: any) {
