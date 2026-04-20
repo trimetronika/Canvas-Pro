@@ -53,11 +53,10 @@ const callGemini = async (
   } catch (err: any) {
     if (isRateLimitError(err)) {
       const waitSecs = getRetrySeconds(err);
-      const waitMsg = waitSecs
-        ? `Coba lagi dalam ${waitSecs} detik.`
-        : "Coba lagi beberapa saat lagi.";
       const friendly = new Error(
-        `Model ${model} mencapai batas kuota/rate limit Gemini. ${waitMsg}`
+        waitSecs
+          ? `Model ${model} mencapai batas kuota/rate limit Gemini. Coba lagi dalam ${waitSecs} detik.`
+          : `Model ${model} mencapai batas kuota/rate limit Gemini. Coba lagi beberapa saat lagi.`
       ) as any;
       friendly.retryAfterSeconds = waitSecs;
       friendly.isRateLimitError = true;

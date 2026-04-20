@@ -378,7 +378,7 @@ const App: React.FC = () => {
       if (isRateLimited) {
         const retryFromError = e?.retryAfterSeconds;
         const retryFromMessage = (() => {
-          const match = String(e?.message || '').match(/retry in (\d+(\.\d+)?)s/i);
+          const match = String(e?.message || '').match(/(?:retry in|dalam)\s+(\d+(\.\d+)?)(?:s|\s*detik)/i);
           return match ? Math.ceil(parseFloat(match[1])) : undefined;
         })();
         setGeminiRateLimitWarning({
@@ -963,7 +963,7 @@ const App: React.FC = () => {
                   </p>
                   {geminiRateLimitWarning.retryAfterSeconds != null && (
                     <p className="text-xs font-medium">
-                      Coba lagi dalam sekitar {geminiRateLimitWarning.retryAfterSeconds} detik, atau ganti model.
+                      Coba lagi dalam {geminiRateLimitWarning.retryAfterSeconds} detik, atau ganti model.
                     </p>
                   )}
                 </div>
