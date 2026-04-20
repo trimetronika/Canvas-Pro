@@ -899,14 +899,15 @@ export const PlanDisplay: React.FC<PlanDisplayProps> = ({
         </div>
 
         {/* RIGHT PANEL (Desktop Map) */}
-        <div className="hidden lg:block lg:col-span-7 lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] rounded-3xl overflow-hidden shadow-md border border-slate-200 dark:border-slate-700 relative bg-slate-50 dark:bg-slate-900">
+        <div className="hidden lg:flex lg:flex-col lg:col-span-7 lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] rounded-3xl overflow-hidden shadow-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
            {userLocation ? (
               <>
-                <div className="h-full w-full">
+                {/* Map takes all remaining vertical space */}
+                <div className="flex-1 min-h-0">
                    <RouteMap stops={processedStops} userLocation={userLocation} returnToStart={returnToStart} onPointClick={handleMapMarkerClick} />
                 </div>
-                {/* Floating Stats Card */}
-                <div className="absolute bottom-6 left-6 right-6 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-lg flex items-center justify-between z-[400]">
+                {/* Stats bar sits below the map, never overlapping */}
+                <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0">
                     <div>
                       <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mb-1">Total Distance</p>
                       <p className="text-2xl font-extrabold text-slate-800 dark:text-white">~{estimatedTotalDistance} <span className="text-sm text-slate-500 font-medium">km</span></p>
@@ -957,7 +958,7 @@ export const PlanDisplay: React.FC<PlanDisplayProps> = ({
                 </div>
               </>
            ) : (
-              <div className="h-full flex items-center justify-center">
+              <div className="flex-1 flex items-center justify-center">
                  <div className="text-center text-slate-400">
                     <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
                     <p>Map unavailable without location</p>
