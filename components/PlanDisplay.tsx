@@ -81,6 +81,9 @@ export const PlanDisplay: React.FC<PlanDisplayProps> = ({
   
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
 
+  // Reorder Mode State
+  const [isReordering, setIsReordering] = useState(false);
+
   // Edit Title State
   const [editingStopId, setEditingStopId] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState('');
