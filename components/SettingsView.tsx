@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Trash2, Info, AlertTriangle, Moon, Sun, Monitor, Smartphone, Sliders, Cloud, RefreshCw, CheckCircle2, Mail, MessageCircle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { DEFAULT_WHATSAPP_TEMPLATE } from '../utils';
+import { GEMINI_MODEL_OPTIONS } from '../geminiModels';
 
 interface SettingsViewProps {
   onClearHistory: () => void;
@@ -14,6 +15,8 @@ interface SettingsViewProps {
   syncing: boolean;
   whatsappTemplate: string;
   onWhatsappTemplateChange: (template: string) => void;
+  geminiModel: string;
+  onGeminiModelChange: (model: string) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
@@ -27,6 +30,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   syncing,
   whatsappTemplate,
   onWhatsappTemplateChange,
+  geminiModel,
+  onGeminiModelChange,
 }) => {
   const { theme, toggleTheme } = useTheme();
   const [emailInput, setEmailInput] = useState(userEmail);
@@ -123,6 +128,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                  <span>5 km</span>
                  <span>50 km</span>
               </div>
+           </div>
+
+           <div className="mt-6">
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-2">Model Gemini</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Pilih model AI untuk generate content. Default: Gemini 2.5 Flash.</p>
+              <select
+                value={geminiModel}
+                onChange={(e) => onGeminiModelChange(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-brand-500 dark:focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none text-sm font-medium text-slate-800 dark:text-white transition-all"
+              >
+                <optgroup label="Primary">
+                  {GEMINI_MODEL_OPTIONS.filter(option => !option.experimental).map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Experimental">
+                  {GEMINI_MODEL_OPTIONS.filter(option => option.experimental).map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 font-medium">
+                Model experimental mungkin tidak tersedia di semua akun/project API key.
+              </p>
            </div>
         </div>
       </div>

@@ -1,12 +1,9 @@
 import { GoogleGenAI, Tool } from "@google/genai";
 import { GeoLocation, CanvasPlan, PlaceSource, CanvasStop, IndustryOption, LeadScore } from "../types";
 import { calculateDistance } from "./routeOptimization";
+import { DEFAULT_GEMINI_MODEL } from "../geminiModels";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-// Model constants – lite is primary (cheaper/faster), flash is fallback
-const PRIMARY_MODEL = "gemini-2.5-flash-lite";
-const FALLBACK_MODEL = "gemini-2.5-flash";
 
 /** Returns true if the error is a Gemini rate-limit / quota-exhausted error. */
 const isRateLimitError = (err: any): boolean => {
@@ -43,46 +40,34 @@ const getRetrySeconds = (err: any): number | null => {
   return null;
 };
 
-/**
- * Wraps a Gemini generateContent call with automatic model fallback.
- * Primary model: gemini-2.5-flash-lite (cost-efficient default).
- * Fallback model: gemini-2.5-flash (used once on rate-limit).
- */
-const callGeminiWithFallback = async (
+/** Executes a Gemini generateContent call with the selected model (no auto-fallback). */
+const callGemini = async (
+  model: string,
   prompt: string,
   config: Record<string, any>
 ): Promise<any> => {
-  const tryModel = async (model: string) =>
-    ai.models.generateContent({ model, contents: prompt, config });
-
   try {
-    const response = await tryModel(PRIMARY_MODEL);
-    console.log(`[Gemini] Request served by ${PRIMARY_MODEL}`);
+    const response = await ai.models.generateContent({ model, contents: prompt, config });
+    console.log(`[Gemini] Request served by ${model}`);
     return response;
-  } catch (primaryErr: any) {
-    if (!isRateLimitError(primaryErr)) throw primaryErr;
-
-    console.warn(
-      `[Gemini] Rate limited on ${PRIMARY_MODEL}, retrying with ${FALLBACK_MODEL}…`
-    );
-
-    try {
-      const response = await tryModel(FALLBACK_MODEL);
-      console.log(`[Gemini] Fallback request served by ${FALLBACK_MODEL}`);
-      return response;
-    } catch (fallbackErr: any) {
-      // Both models rate-limited – bubble up a user-friendly error
-      const waitSecs =
-        getRetrySeconds(fallbackErr) ?? getRetrySeconds(primaryErr);
+  } catch (err: any) {
+    if (isRateLimitError(err)) {
+      const waitSecs = getRetrySeconds(err);
       const waitMsg = waitSecs
         ? `Coba lagi dalam ${waitSecs} detik.`
         : "Coba lagi beberapa saat lagi.";
       const friendly = new Error(
-        `Batas kuota Gemini tercapai di semua model. ${waitMsg}`
+        `Model ${model} mencapai batas kuota/rate limit Gemini. ${waitMsg}`
       ) as any;
       friendly.retryAfterSeconds = waitSecs;
+      friendly.isRateLimitError = true;
+      friendly.model = model;
+      friendly.code = err?.code;
+      friendly.status = err?.status;
       throw friendly;
     }
+
+    throw err;
   }
 };
 
@@ -111,7 +96,8 @@ export const generateCanvasRoute = async (
   industries: IndustryOption[],
   customQueryText?: string,
   areaName?: string,
-  radius?: number // in km
+  radius?: number, // in km
+  model: string = DEFAULT_GEMINI_MODEL
 ): Promise<CanvasPlan> => {
   
   const isAiRecommendation = industries.some(i => i.id === 'ai-recommendation');
@@ -182,7 +168,7 @@ export const generateCanvasRoute = async (
       JANGAN LUPA blok JSON di akhir dengan detail lengkap (alamat, telp, rating, lat/lng, analisis).
     `;
 
-    const response = await callGeminiWithFallback(prompt, {
+    const response = await callGemini(model, prompt, {
       systemInstruction,
       tools,
       toolConfig: location ? {
@@ -374,6 +360,18 @@ export const generateCanvasRoute = async (
     const err = new Error(msg) as any;
     if (error?.retryAfterSeconds != null) {
       err.retryAfterSeconds = error.retryAfterSeconds;
+    }
+    if (error?.isRateLimitError) {
+      err.isRateLimitError = true;
+    }
+    if (error?.model) {
+      err.model = error.model;
+    }
+    if (error?.code != null) {
+      err.code = error.code;
+    }
+    if (error?.status != null) {
+      err.status = error.status;
     }
     throw err;
   }
