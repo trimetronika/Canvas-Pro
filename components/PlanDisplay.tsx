@@ -100,8 +100,8 @@ export const PlanDisplay: React.FC<PlanDisplayProps> = ({
     }
   }, [plan.stops.length, plan.markdownText]);
 
-  // Process stops logic
-  // FIX: Force coordinate extraction or fallback to mock coordinates to ensure Total Distance is never 0
+  // Process stops logic:
+  // extract coordinates from URI when possible; keep missing coords undefined so they can be excluded from map/distance.
   const processedStops = useMemo(() => {
     const stopsWithData = plan.stops.map((stop, index) => {
       let lat = stop.lat;
