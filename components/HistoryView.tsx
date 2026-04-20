@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { CanvasPlan } from '../types';
-import { Calendar, CheckCircle2, ChevronRight, MapPin, TrendingUp, Pencil, Check, X } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronRight, MapPin, TrendingUp, Pencil, Check, X, Trash2 } from 'lucide-react';
 
 interface HistoryViewProps {
   history: CanvasPlan[];
   onSelectPlan: (plan: CanvasPlan) => void;
   onRenamePlan?: (planId: string, name: string) => void;
+  onDeletePlan?: (planId: string) => void;
 }
 
-export const HistoryView: React.FC<HistoryViewProps> = ({ history, onSelectPlan, onRenamePlan }) => {
+export const HistoryView: React.FC<HistoryViewProps> = ({ history, onSelectPlan, onRenamePlan, onDeletePlan }) => {
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState('');
 
@@ -113,8 +114,24 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ history, onSelectPlan,
                     {new Date(plan.timestamp).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                   </div>
                 </div>
-                <div className="p-2 bg-slate-50 dark:bg-slate-700 rounded-full group-hover:bg-brand-50 dark:group-hover:bg-brand-900/30 transition-colors shrink-0">
-                  <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 group-hover:text-brand-500" />
+                <div className="flex items-center gap-1 shrink-0">
+                  {onDeletePlan && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm('Hapus history mission ini permanen?')) {
+                          onDeletePlan(plan.id);
+                        }
+                      }}
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                      title="Delete history mission"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  <div className="p-2 bg-slate-50 dark:bg-slate-700 rounded-full group-hover:bg-brand-50 dark:group-hover:bg-brand-900/30 transition-colors">
+                    <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 group-hover:text-brand-500" />
+                  </div>
                 </div>
               </div>
 

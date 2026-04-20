@@ -60,6 +60,9 @@ const LOCAL_STORAGE_DATABASE_KEY = 'canvasPro_database';
 const LOCAL_STORAGE_MAX_RADIUS_KEY = 'canvasPro_maxRadius';
 const LOCAL_STORAGE_USER_EMAIL_KEY = 'canvasPro_userEmail';
 const LOCAL_STORAGE_WHATSAPP_TEMPLATE_KEY = 'canvasPro_whatsappTemplate';
+const LOCAL_STORAGE_DELETED_HISTORY_IDS_KEY = 'canvasPro_deletedHistoryIds';
+const LOCAL_STORAGE_DELETED_SAVED_ROUTE_IDS_KEY = 'canvasPro_deletedSavedRouteIds';
+const LOCAL_STORAGE_DELETED_DATABASE_ITEM_IDS_KEY = 'canvasPro_deletedDatabaseItemIds';
 
 type AppView = 'active' | 'history' | 'settings' | 'database';
 type GeminiRateLimitBannerState = {
@@ -92,6 +95,9 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<CanvasPlan[]>([]);
   const [savedRoutes, setSavedRoutes] = useState<CanvasPlan[]>([]);
   const [database, setDatabase] = useState<DatabaseItem[]>([]);
+  const [deletedHistoryIds, setDeletedHistoryIds] = useState<string[]>([]);
+  const [deletedSavedRouteIds, setDeletedSavedRouteIds] = useState<string[]>([]);
+  const [deletedDatabaseItemIds, setDeletedDatabaseItemIds] = useState<string[]>([]);
   
   const [userEmail, setUserEmail] = useState<string>('');
   const [lastSynced, setLastSynced] = useState<number | null>(null);
@@ -131,6 +137,21 @@ const App: React.FC = () => {
       const savedDatabase = localStorage.getItem(LOCAL_STORAGE_DATABASE_KEY);
       if (savedDatabase) {
         setDatabase(JSON.parse(savedDatabase));
+      }
+
+      const savedDeletedHistoryIds = localStorage.getItem(LOCAL_STORAGE_DELETED_HISTORY_IDS_KEY);
+      if (savedDeletedHistoryIds) {
+        setDeletedHistoryIds(JSON.parse(savedDeletedHistoryIds));
+      }
+
+      const savedDeletedSavedRouteIds = localStorage.getItem(LOCAL_STORAGE_DELETED_SAVED_ROUTE_IDS_KEY);
+      if (savedDeletedSavedRouteIds) {
+        setDeletedSavedRouteIds(JSON.parse(savedDeletedSavedRouteIds));
+      }
+
+      const savedDeletedDatabaseItemIds = localStorage.getItem(LOCAL_STORAGE_DELETED_DATABASE_ITEM_IDS_KEY);
+      if (savedDeletedDatabaseItemIds) {
+        setDeletedDatabaseItemIds(JSON.parse(savedDeletedDatabaseItemIds));
       }
 
       const savedMaxRadius = localStorage.getItem(LOCAL_STORAGE_MAX_RADIUS_KEY);
@@ -189,6 +210,21 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!isLoaded) return;
+    localStorage.setItem(LOCAL_STORAGE_DELETED_HISTORY_IDS_KEY, JSON.stringify(deletedHistoryIds));
+  }, [deletedHistoryIds, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    localStorage.setItem(LOCAL_STORAGE_DELETED_SAVED_ROUTE_IDS_KEY, JSON.stringify(deletedSavedRouteIds));
+  }, [deletedSavedRouteIds, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    localStorage.setItem(LOCAL_STORAGE_DELETED_DATABASE_ITEM_IDS_KEY, JSON.stringify(deletedDatabaseItemIds));
+  }, [deletedDatabaseItemIds, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
     localStorage.setItem(LOCAL_STORAGE_MAX_RADIUS_KEY, maxRadius.toString());
   }, [maxRadius, isLoaded]);
 
@@ -213,14 +249,31 @@ const App: React.FC = () => {
 
   // Cloud Sync Logic
   const applyCloudData = useCallback((cloudData: Record<string, unknown>) => {
+    const cloudDeletedHistoryIds = Array.isArray(cloudData.deletedHistoryIds)
+      ? Array.from(new Set(cloudData.deletedHistoryIds.filter((id): id is string => typeof id === 'string')))
+      : [];
+    const cloudDeletedSavedRouteIds = Array.isArray(cloudData.deletedSavedRouteIds)
+      ? Array.from(new Set(cloudData.deletedSavedRouteIds.filter((id): id is string => typeof id === 'string')))
+      : [];
+    const cloudDeletedDatabaseItemIds = Array.isArray(cloudData.deletedDatabaseItemIds)
+      ? Array.from(new Set(cloudData.deletedDatabaseItemIds.filter((id): id is string => typeof id === 'string')))
+      : [];
+
+    setDeletedHistoryIds(cloudDeletedHistoryIds);
+    setDeletedSavedRouteIds(cloudDeletedSavedRouteIds);
+    setDeletedDatabaseItemIds(cloudDeletedDatabaseItemIds);
+
     if (cloudData.history && Array.isArray(cloudData.history)) {
-      setHistory(cloudData.history as CanvasPlan[]);
+      const deletedHistorySet = new Set(cloudDeletedHistoryIds);
+      setHistory((cloudData.history as CanvasPlan[]).filter((plan) => !deletedHistorySet.has(plan.id)));
     }
     if (cloudData.savedRoutes && Array.isArray(cloudData.savedRoutes)) {
-      setSavedRoutes(cloudData.savedRoutes as CanvasPlan[]);
+      const deletedSavedSet = new Set(cloudDeletedSavedRouteIds);
+      setSavedRoutes((cloudData.savedRoutes as CanvasPlan[]).filter((plan) => !deletedSavedSet.has(plan.id)));
     }
     if (cloudData.database && Array.isArray(cloudData.database)) {
-      setDatabase(cloudData.database as DatabaseItem[]);
+      const deletedDatabaseSet = new Set(cloudDeletedDatabaseItemIds);
+      setDatabase((cloudData.database as DatabaseItem[]).filter((item) => !deletedDatabaseSet.has(item.id)));
     }
     if (typeof cloudData.maxRadius === 'number') {
       setMaxRadius(cloudData.maxRadius);
@@ -230,7 +283,15 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleCloudSync = async (emailToSync?: string, dataOverrides?: { history?: CanvasPlan[], savedRoutes?: CanvasPlan[], database?: DatabaseItem[], maxRadius?: number }) => {
+  const handleCloudSync = async (emailToSync?: string, dataOverrides?: {
+    history?: CanvasPlan[],
+    savedRoutes?: CanvasPlan[],
+    database?: DatabaseItem[],
+    maxRadius?: number,
+    deletedHistoryIds?: string[],
+    deletedSavedRouteIds?: string[],
+    deletedDatabaseItemIds?: string[]
+  }) => {
     const email = emailToSync || userEmail;
     if (!email) return;
 
@@ -239,10 +300,13 @@ const App: React.FC = () => {
       // Push current local data (or overrides) to cloud.
       // The server performs a read→merge→write union so no data is lost.
       const payload = {
-        history: dataOverrides?.history || history,
-        savedRoutes: dataOverrides?.savedRoutes || savedRoutes,
-        database: dataOverrides?.database || database,
-        maxRadius: dataOverrides?.maxRadius || maxRadius
+        history: dataOverrides?.history ?? history,
+        savedRoutes: dataOverrides?.savedRoutes ?? savedRoutes,
+        database: dataOverrides?.database ?? database,
+        maxRadius: dataOverrides?.maxRadius ?? maxRadius,
+        deletedHistoryIds: dataOverrides?.deletedHistoryIds ?? deletedHistoryIds,
+        deletedSavedRouteIds: dataOverrides?.deletedSavedRouteIds ?? deletedSavedRouteIds,
+        deletedDatabaseItemIds: dataOverrides?.deletedDatabaseItemIds ?? deletedDatabaseItemIds
       };
 
       const response = await fetch('/api/sync', {
@@ -308,7 +372,7 @@ const App: React.FC = () => {
     }, 5000); // Sync every 5 seconds after last change
 
     return () => clearTimeout(timer);
-  }, [history, savedRoutes, database, maxRadius, userEmail, isLoaded]);
+  }, [history, savedRoutes, database, maxRadius, deletedHistoryIds, deletedSavedRouteIds, deletedDatabaseItemIds, userEmail, isLoaded]);
 
   const fetchLocation = useCallback(() => {
     setLoadingLoc(true);
@@ -482,10 +546,17 @@ const App: React.FC = () => {
     // Immediate local storage save for history to prevent loss on refresh
     localStorage.setItem(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify(newHistory));
 
+    let newSavedRoutes = savedRoutes;
+    let nextDeletedSavedRouteIds = deletedSavedRouteIds;
     if (activePlan.isSaved) {
       const newSaved = savedRoutes.filter(r => r.id !== activePlan.id);
+      const deletedSavedIds = Array.from(new Set([...deletedSavedRouteIds, activePlan.id]));
       setSavedRoutes(newSaved);
+      setDeletedSavedRouteIds(deletedSavedIds);
       localStorage.setItem(LOCAL_STORAGE_SAVED_KEY, JSON.stringify(newSaved));
+      localStorage.setItem(LOCAL_STORAGE_DELETED_SAVED_ROUTE_IDS_KEY, JSON.stringify(deletedSavedIds));
+      newSavedRoutes = newSaved;
+      nextDeletedSavedRouteIds = deletedSavedIds;
     }
     
     setActivePlan(null);
@@ -495,19 +566,40 @@ const App: React.FC = () => {
     
     // Trigger cloud sync immediately for history
     if (userEmail) {
-      handleCloudSync(undefined, { history: newHistory });
+      handleCloudSync(undefined, {
+        history: newHistory,
+        savedRoutes: newSavedRoutes,
+        deletedSavedRouteIds: nextDeletedSavedRouteIds
+      });
     }
   };
 
   const handleClearHistory = () => {
      if(window.confirm("Clear all history?")) {
+        const historyIds = history.map((plan) => plan.id);
+        const nextDeletedHistoryIds = Array.from(new Set([...deletedHistoryIds, ...historyIds]));
         setHistory([]);
+        setDeletedHistoryIds(nextDeletedHistoryIds);
+        setSelectedHistoryPlan(null);
+        localStorage.setItem(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify([]));
+        localStorage.setItem(LOCAL_STORAGE_DELETED_HISTORY_IDS_KEY, JSON.stringify(nextDeletedHistoryIds));
+        if (userEmail) {
+          handleCloudSync(undefined, { history: [], deletedHistoryIds: nextDeletedHistoryIds });
+        }
      }
   };
 
   const handleClearSaved = () => {
     if(window.confirm("Clear all saved routes?")) {
+       const savedRouteIds = savedRoutes.map((plan) => plan.id);
+       const nextDeletedSavedRouteIds = Array.from(new Set([...deletedSavedRouteIds, ...savedRouteIds]));
        setSavedRoutes([]);
+       setDeletedSavedRouteIds(nextDeletedSavedRouteIds);
+       localStorage.setItem(LOCAL_STORAGE_SAVED_KEY, JSON.stringify([]));
+       localStorage.setItem(LOCAL_STORAGE_DELETED_SAVED_ROUTE_IDS_KEY, JSON.stringify(nextDeletedSavedRouteIds));
+       if (userEmail) {
+         handleCloudSync(undefined, { savedRoutes: [], deletedSavedRouteIds: nextDeletedSavedRouteIds });
+       }
     }
   };
 
@@ -550,7 +642,36 @@ const App: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
     if(window.confirm("Hapus rute tersimpan ini permanen?")) {
-       setSavedRoutes(savedRoutes.filter(r => r.id !== id));
+       const newSavedRoutes = savedRoutes.filter(r => r.id !== id);
+       const nextDeletedSavedRouteIds = Array.from(new Set([...deletedSavedRouteIds, id]));
+       setSavedRoutes(newSavedRoutes);
+       setDeletedSavedRouteIds(nextDeletedSavedRouteIds);
+       localStorage.setItem(LOCAL_STORAGE_SAVED_KEY, JSON.stringify(newSavedRoutes));
+       localStorage.setItem(LOCAL_STORAGE_DELETED_SAVED_ROUTE_IDS_KEY, JSON.stringify(nextDeletedSavedRouteIds));
+       if (userEmail) {
+         handleCloudSync(undefined, {
+          savedRoutes: newSavedRoutes,
+          deletedSavedRouteIds: nextDeletedSavedRouteIds
+         });
+       }
+    }
+  };
+
+  const handleDeleteHistoryPlan = (planId: string) => {
+    const newHistory = history.filter((plan) => plan.id !== planId);
+    const nextDeletedHistoryIds = Array.from(new Set([...deletedHistoryIds, planId]));
+    setHistory(newHistory);
+    setDeletedHistoryIds(nextDeletedHistoryIds);
+    if (selectedHistoryPlan?.id === planId) {
+      setSelectedHistoryPlan(null);
+    }
+    localStorage.setItem(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify(newHistory));
+    localStorage.setItem(LOCAL_STORAGE_DELETED_HISTORY_IDS_KEY, JSON.stringify(nextDeletedHistoryIds));
+    if (userEmail) {
+      handleCloudSync(undefined, {
+        history: newHistory,
+        deletedHistoryIds: nextDeletedHistoryIds
+      });
     }
   };
 
@@ -591,14 +712,20 @@ const App: React.FC = () => {
 
   const handleRemoveFromDatabase = (id: string) => {
     const newDatabase = database.filter(item => item.id !== id);
+    const nextDeletedDatabaseItemIds = Array.from(new Set([...deletedDatabaseItemIds, id]));
     setDatabase(newDatabase);
+    setDeletedDatabaseItemIds(nextDeletedDatabaseItemIds);
     
     // Immediate local storage save
     localStorage.setItem(LOCAL_STORAGE_DATABASE_KEY, JSON.stringify(newDatabase));
+    localStorage.setItem(LOCAL_STORAGE_DELETED_DATABASE_ITEM_IDS_KEY, JSON.stringify(nextDeletedDatabaseItemIds));
     
     // Immediate cloud sync
     if (userEmail) {
-      handleCloudSync(undefined, { database: newDatabase });
+      handleCloudSync(undefined, {
+        database: newDatabase,
+        deletedDatabaseItemIds: nextDeletedDatabaseItemIds
+      });
     }
   };
 
@@ -946,6 +1073,7 @@ const App: React.FC = () => {
           history={history} 
           onSelectPlan={setSelectedHistoryPlan}
           onRenamePlan={handleRenamePlan}
+          onDeletePlan={handleDeleteHistoryPlan}
         />
       );
     }
